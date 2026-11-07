@@ -3,11 +3,17 @@
 Play as Final Wars Gigan in **Godzilla: Destroy All Monsters Melee Remastered**, with or without chainsaw arms.
 Comes with a one-click skin switcher.
 
-![Final Wars Gigan fighting Godzilla](docs/screenshots/final-wars-vs-godzilla.webp)
+![Final Wars Gigan firing his visor beam](docs/screenshots/beam-canyon.webp)
 
-| Gigan Skin Launcher | Chainsaw |
+<p align="center">
+  <a href="../../releases/latest"><img alt="Download the latest release" src="https://img.shields.io/badge/DOWNLOAD-Latest%20release-e12626?style=for-the-badge&logo=github&logoColor=white" height="44"></a>
+</p>
+
+| | |
 | --- | --- |
-| ![Launcher](docs/screenshots/launcher.png) | ![Chainsaw Gigan](docs/screenshots/chainsaw.webp) |
+| ![Visor beam over the river](docs/screenshots/beam-river.webp) | ![Final Wars Gigan in the rain](docs/screenshots/city-rain.webp) |
+| ![Chainsaw Gigan against Rodan](docs/screenshots/chainsaw-harbor.webp) | ![Downtown fight with Rodan](docs/screenshots/city-rodan.webp) |
+| ![Beam across the canyon](docs/screenshots/beam-canyon-2.webp) | ![Wide shot of the visor beam](docs/screenshots/beam-wide.webp) |
 
 ## Skins
 
@@ -21,6 +27,8 @@ Comes with a one-click skin switcher.
 - Offline use only. Use online at your own risk, or switch back to Showa before playing online.
 
 ## Install
+
+<img alt="Gigan Skin Launcher" src="docs/screenshots/launcher.png" width="520">
 
 1. Download **Gigan_Skin_Launcher_v0.3.zip** from the [latest release](../../releases/latest).
 2. Extract it anywhere, for example your Desktop. Keep everything in the folder together.
