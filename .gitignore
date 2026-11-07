@@ -1,0 +1,30 @@
+# Ripped / game-derived content and big working files stay out of the repo.
+# The finished mod is shipped as a release download instead.
+source/
+work/
+export/
+mappings/
+archive/
+release/
+Gigan Skin Launcher/
+*.blend
+*.blend1
+
+# packaged mod files and game data
+*.pak
+*.ucas
+*.utoc
+*.usmap
+*.uasset
+*.uexp
+*.ubulk
+
+# build output and third-party binaries (Oodle etc.)
+bin/
+obj/
+*.dll
+*.exe
+
+# python caches
+__pycache__/
+*.pyc
