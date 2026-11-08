@@ -1,10 +1,3 @@
-"""Hero render for a launcher card: a Gigan posed from a game animation frame, lit dramatically, portrait framing.
-
-Fitted FW models (blend has GZ1_Gigan + SK_GZPro_Gigan_FW):
-  blender -b gigan_fw_final.blend --python render_hero.py -- <bones.json> <anim.json> <frame> <out.png> [color_texture]
-The game's own (Showa) Gigan: run on an empty scene and pass the glb as the color_texture slot with --glb:
-  blender -b --factory-startup --python render_hero.py -- <bones.json> <anim.json> <frame> <out.png> --glb <SK_GZPro_Gigan.glb>
-"""
 import sys, os, json, math
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -26,7 +19,7 @@ if extra and extra[0] == "--glb":
         body.modifiers.remove(m)
     mw = body.matrix_world.copy()
     body.parent = None
-    body.data.transform(Matrix.Scale(100, 4) @ mw)  # raw glb verts are /100
+    body.data.transform(Matrix.Scale(100, 4) @ mw)
     body.matrix_world = Matrix.Identity(4)
     for o in list(bpy.data.objects):
         if o not in (arm, body):
@@ -39,7 +32,7 @@ else:
     for o in list(bpy.data.objects):
         if o.type in ("CAMERA", "LIGHT"):
             bpy.data.objects.remove(o)
-    if extra:  # sharper colour map (e.g. the AI-upscaled Wii texture) for the render
+    if extra:
         for im in bpy.data.images:
             if im.source == "FILE" or im.packed_file:
                 im.unpack(method="REMOVE") if im.packed_file else None
@@ -49,12 +42,11 @@ else:
 anim = json.load(open(anim_json, encoding="utf-8-sig"))
 pose = anim_frame_world(anim, frame, parents, 0.01)
 root = pose["GiganRoot"].translation.copy()
-for k in pose:  # strip root motion so he stays centred
+for k in pose:
     pose[k] = Matrix.Translation(-Vector((root.x, root.y, 0))) @ pose[k]
 apply_pose(arm, pose)
 bpy.context.view_layer.update()
 
-# materials: make the base colour textures read well under real lighting
 for mat in body.data.materials:
     if mat and mat.node_tree:
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
@@ -73,7 +65,6 @@ world = bpy.data.worlds.new("hero")
 scn.world = world
 world.use_nodes = True
 bg = world.node_tree.nodes["Background"]
-# dark backdrop with a faint red glow low behind him (a gradient from the camera's view of the sky)
 grad = world.node_tree.nodes.new("ShaderNodeTexGradient")
 coord = world.node_tree.nodes.new("ShaderNodeTexCoord")
 mapn = world.node_tree.nodes.new("ShaderNodeMapping")
@@ -89,7 +80,6 @@ links.new(grad.outputs["Fac"], ramp.inputs["Fac"])
 links.new(ramp.outputs["Color"], bg.inputs["Color"])
 bg.inputs["Strength"].default_value = 1.0
 
-# ground that catches light and shadow
 bpy.ops.mesh.primitive_plane_add(size=900, location=(0, 0, -0.6))
 ground = bpy.context.active_object
 gmat = bpy.data.materials.new("ground")
@@ -99,7 +89,6 @@ gb.inputs["Base Color"].default_value = (0.006, 0.006, 0.007, 1)
 gb.inputs["Roughness"].default_value = 0.85
 ground.data.materials.append(gmat)
 
-# frame on the posed body
 deps = bpy.context.evaluated_depsgraph_get()
 ev = body.evaluated_get(deps).to_mesh()
 pts = [body.matrix_world @ v.co for v in ev.vertices]
@@ -108,7 +97,7 @@ hi = Vector([max(p[i] for p in pts) for i in range(3)])
 body.evaluated_get(deps).to_mesh_clear()
 ctr = (lo + hi) / 2
 tail = arm.pose.bones["Bip01_Tail16"].matrix.translation
-front = Vector((ctr.x - tail.x, ctr.y - tail.y, 0)).normalized()  # facing away from the tail
+front = Vector((ctr.x - tail.x, ctr.y - tail.y, 0)).normalized()
 side = Vector((-front.y, front.x, 0))
 height = hi.z - lo.z
 

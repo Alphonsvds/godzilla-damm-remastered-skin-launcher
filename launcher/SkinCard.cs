@@ -6,16 +6,12 @@ using System.Drawing.Text;
 
 namespace GiganSkinLauncher;
 
-/// <summary>One full-height card: cover-cropped art under a dark overlay, the skin's name along the bottom,
-/// a slow zoom on hover; the selected card is lit up, the others stay dimmed.
-/// The art is pre-scaled once per size at full zoom, and each frame draws a window into that cache onto a fixed
-/// destination, so the hover zoom is cheap and doesn't jitter from per-frame pixel rounding.</summary>
 public sealed class SkinCard : Control
 {
     const float MaxZoom = 1.07f;
     const float DimIdle = 0.70f, DimHover = 0.30f, DimSelected = 0.02f;
     const double DurationMs = 280;
-    const float FocusY = 0.42f;  // zoom/crop around a point a little above centre, where the heads are
+    const float FocusY = 0.42f;
 
     readonly System.Windows.Forms.Timer _anim = new() { Interval = 10 };
     readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -29,7 +25,6 @@ public sealed class SkinCard : Control
     public Skin Skin { get; }
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    /// <summary>Small label under the name (e.g. IN GAME NOW, COMING SOON); null for none.</summary>
     public string? Badge { get; set; }
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -67,7 +62,7 @@ public sealed class SkinCard : Control
     void Step()
     {
         var t = Math.Min(1.0, (_clock.Elapsed.TotalMilliseconds - _startMs) / DurationMs);
-        var ease = (float)(1 - Math.Pow(1 - t, 3));  // ease-out cubic
+        var ease = (float)(1 - Math.Pow(1 - t, 3));
         _zoom = _zoomFrom + (_zoomTo - _zoomFrom) * ease;
         _dim = _dimFrom + (_dimTo - _dimFrom) * ease;
         if (t >= 1)
@@ -75,7 +70,6 @@ public sealed class SkinCard : Control
         Invalidate();
     }
 
-    /// <summary>Art cover-fitted to this card's size at full zoom, rendered once with high-quality resampling.</summary>
     Bitmap? Cache()
     {
         if (_art is null || Width <= 0 || Height <= 0)
@@ -106,7 +100,6 @@ public sealed class SkinCard : Control
         var cache = Cache();
         if (cache is not null)
         {
-            // fixed destination, moving source window: at full zoom it is a 1:1 copy of the cache
             g.InterpolationMode = InterpolationMode.HighQualityBilinear;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             var sw = cache.Width * (1f / _zoom) * (r.Width / (float)cache.Width) * MaxZoom;
@@ -125,7 +118,6 @@ public sealed class SkinCard : Control
                    Color.FromArgb(0, 0, 0, 0), Color.FromArgb(235, 0, 0, 0)))
             g.FillRectangle(fade, 0, fadeTop, r.Width, r.Height - fadeTop);
 
-        // name + in-game tag
         const int pad = 22;
         using var nameFont = new Font("Segoe UI Black", Math.Max(16f, r.Width / 12.5f), FontStyle.Regular, GraphicsUnit.Pixel);
         var nameRect = new RectangleF(pad, 0, r.Width - pad * 2, r.Height - pad - (Badge is null ? 0 : 30));

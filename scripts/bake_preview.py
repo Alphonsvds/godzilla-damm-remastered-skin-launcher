@@ -1,7 +1,3 @@
-"""Bake game animations onto the fitted Final Wars Gigan so they can be played back in Blender.
-Root motion is removed so Gigan stays in place. Each animation gets a timeline marker.
-Usage: blender -b gigan_fw_fitted.blend --python bake_preview.py -- <bones.json> <out.blend> <anim.json>...
-"""
 import sys, os, json, math
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -23,13 +19,13 @@ for path in anims:
     scn.timeline_markers.new(anim["name"], frame=start)
     for f in range(len(anim["frames"])):
         frame = [dict(b) for b in anim["frames"][f]]
-        frame[0] = dict(frame[0], t=[0.0, 0.0, 0.0])  # strip GiganRoot root motion
+        frame[0] = dict(frame[0], t=[0.0, 0.0, 0.0])
         apply_pose(arm, anim_frame_world({"bones": anim["bones"], "frames": [frame]}, 0, parents, 0.01))
         for pb in arm.pose.bones:
             pb.keyframe_insert("location", frame=start + f)
             pb.keyframe_insert("rotation_quaternion", frame=start + f)
     print(f"[bake] {anim['name']}: frames {start}-{start + len(anim['frames']) - 1}")
-    start += len(anim["frames"]) + 10  # short hold between moves
+    start += len(anim["frames"]) + 10
 scn.frame_start, scn.frame_end = 1, start - 10
 
 cam_data = bpy.data.cameras.new("Camera")

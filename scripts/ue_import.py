@@ -1,22 +1,13 @@
-"""Unreal Editor (5.8) Python: build the Final Wars Gigan mod content inside the GZPro project.
-
-Ships (chunk 1):  SK_GZPro_Gigan + the seven Gigan_LP_base_* textures, at the game's own paths.
-Stand-ins only (chunk 0, discarded): SKEL_GZ1_Gigan_Skeleton, PHYS_GZ1_Gigan_PhysicsAsset, MI_GZPro_Gigan_Body.
-At runtime the mesh's references resolve to the game's real skeleton, physics asset and material.
-
-Run: UnrealEditor-Cmd.exe GZPro.uproject -run=pythonscript -script="ue_import.py" (paths via env GZ_EXPORT)
-"""
 import os
 import unreal
 
 EXPORT = os.environ.get("GZ_EXPORT", r"C:\Users\halst\OneDrive\Desktop\Projects\gigan-fw-mod\export")
-TARGET = os.environ.get("GZ_TARGET", "gigan")  # gigan | godzilla2k | heisei
+TARGET = os.environ.get("GZ_TARGET", "gigan")
 
 eal = unreal.EditorAssetLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 TCS = unreal.TextureCompressionSettings
 TG = unreal.TextureGroup
-# texture kinds: (compression, sRGB, LOD group) -- matches the game's cooked textures
 COLOR = (TCS.TC_DEFAULT, True, TG.TEXTUREGROUP_CHARACTER)
 NORMAL = (TCS.TC_NORMALMAP, False, TG.TEXTUREGROUP_CHARACTER_NORMAL_MAP)
 LINEAR = (TCS.TC_DEFAULT, False, TG.TEXTUREGROUP_CHARACTER)
@@ -31,19 +22,17 @@ if TARGET == "godzilla2k":
     MESH_NAME = "SK_GZPro_Godzilla2k"
     FBX = "SK_GZPro_Godzilla2k.fbx"
     LABEL = "Label_Ship_Godzilla2004"
-    # slot name -> stand-in material instance (at the game's material paths)
     SLOT_MI = {"Godzilla2k_Mesh_body_mtl": "MI_GZPro_Godzilla2k_Body",
                "Godzilla2k_Mesh_spines_mtl": "MI_GZPro_Godzilla2k_Spines"}
     TEXTURES = {f"Godzilla2k_LP_{p}_{k}": kind for p in ("body", "spines")
                 for k, kind in (("C", COLOR), ("N", NORMAL), ("AOR", LINEAR), ("MSK", GRAY), ("ATK_MSK", GRAY))}
     TEXTURES.update({"Godzilla2k_LP_body_H": GRAY, "Godzilla2k_LP_spines_E": COLOR})
-    # the Burning Millennium skin's textures (bake_burning.py), at that skin's own texture folder
     BURN_DIR = f"{HOME}/Skins/2kBurningGodzilla/Textures"
     EXTRA_TEXTURES = {f"2kBurningGodzilla_LP_{k}": (BURN_DIR, kind) for k, kind in (
         ("Body_C", COLOR), ("Body_N", NORMAL), ("Body_AORM", LINEAR), ("Body_E", COLOR), ("Body_H", GRAY),
         ("Body_MSK", GRAY), ("spines_C", COLOR), ("spines_N", NORMAL), ("spines_AORM", LINEAR), ("spines_E", COLOR),
         ("spines_MSK", GRAY))}
-elif TARGET == "heisei":  # the regular Godzilla
+elif TARGET == "heisei":
     HOME = "/Game/Characters/GZPro_Monsters/HeiseiGodzilla"
     GZ1 = "/Game/Characters/GZ1_Monsters/HeiseiGodzilla"
     SKEL = f"{GZ1}/SKEL_GZ1_HeiseiGodzilla_Skeleton"
@@ -62,17 +51,15 @@ else:
     MESH_NAME = "SK_GZPro_Gigan"
     FBX = "SK_GZPro_Gigan_FW.fbx"
     LABEL = "Label_Ship_GiganFW"
-    SLOT_MI = {None: "MI_GZPro_Gigan_Body"}  # every slot
+    SLOT_MI = {None: "MI_GZPro_Gigan_Body"}
     TEXTURES = {"Gigan_LP_base_C": COLOR, "Gigan_LP_base_N": NORMAL, "Gigan_LP_base_AOR": LINEAR,
                 "Gigan_LP_base_E": COLOR, "Gigan_LP_base_H": GRAY, "Gigan_LP_base_MSK": MASKS,
                 "Gigan_LP_base_ATKMSK": MASKS}
 MESH = f"{HOME}/{MESH_NAME}"
 MIS = [f"{HOME}/Materials/{n}" for n in dict.fromkeys(SLOT_MI.values())]
 
-
 def log(msg):
     unreal.log_warning(f"[gzmod] {msg}")
-
 
 def run_import(filename, dest_path, dest_name, options=None):
     task = unreal.AssetImportTask()
@@ -87,12 +74,10 @@ def run_import(filename, dest_path, dest_name, options=None):
     tools.import_asset_tasks([task])
     return list(task.imported_object_paths)
 
-
 for path in (MESH, f"{MESH}_Skeleton", f"{MESH}_PhysicsAsset", SKEL, PHYS, *MIS):
     if eal.does_asset_exist(path):
         eal.delete_asset(path)
 
-# --- mesh ------------------------------------------------------------------------------------
 ui = unreal.FbxImportUI()
 ui.import_mesh = True
 ui.import_as_skeletal = True
@@ -103,13 +88,11 @@ ui.import_animations = False
 ui.create_physics_asset = True
 sk = ui.skeletal_mesh_import_data
 
-
 def setp(obj, name, value):
     try:
         obj.set_editor_property(name, value)
-    except Exception as e:  # option names shift between engine versions; report and carry on
+    except Exception as e:
         log(f"option {type(obj).__name__}.{name} not set: {e}")
-
 
 log("skeletal import options: " + ", ".join(sorted(n for n in dir(sk) if not n.startswith("_"))))
 setp(sk, "import_morph_targets", False)
@@ -118,7 +101,7 @@ setp(sk, "force_front_x_axis", False)
 setp(sk, "convert_scene_unit", False)
 setp(sk, "import_uniform_scale", 1.0)
 setp(sk, "use_t0_as_ref_pose", False)
-setp(sk, "preserve_smoothing_groups", False)  # normals come from the FBX; smoothing groups split every corner
+setp(sk, "preserve_smoothing_groups", False)
 setp(sk, "import_meshes_in_bone_hierarchy", True)
 setp(sk, "normal_import_method", unreal.FBXNormalImportMethod.FBXNIM_IMPORT_NORMALS)
 setp(sk, "vertex_color_import_option", unreal.VertexColorImportOption.OVERRIDE)
@@ -131,13 +114,11 @@ for src, dst in ((f"{MESH}_Skeleton", SKEL), (f"{MESH}_PhysicsAsset", PHYS)):
     if not ok:
         raise RuntimeError("rename failed")
 
-# --- shipped skeleton (Godzillas, when GZ_SKEL_JSON names the game skeleton's CUE4Parse dump): a copy of the game's
-# (same bones, sockets, virtual-bone guid) whose upper-body and thigh bones take their positions from the mesh
 SHIP_SKEL_JSON = os.environ.get("GZ_SKEL_JSON") if TARGET in ("heisei", "godzilla2k") else None
 SHIP_SKEL = bool(SHIP_SKEL_JSON)
 OWN_BONES = {"Bip01_Spine", "Bip01_Spine1", "Bip01_Neck", "Bip01_Neck1", "Bip01_Head", "Bip01_Jaw"} | {
     f"Bip01_{s}_{b}" for s in "LR" for b in ("Clavicle", "UpperArm", "Forearm", "Hand", "Finger0", "Finger01", "Finger1", "Finger11",
-                                            "Thigh", "Calf")}  # thighs at the model's hips, knees on the game's
+                                            "Thigh", "Calf")}
 if SHIP_SKEL:
     import json
     dump = json.load(open(SHIP_SKEL_JSON))
@@ -146,24 +127,18 @@ if SHIP_SKEL:
     skel = unreal.load_asset(SKEL)
     sk_mesh = unreal.load_asset(MESH)
     run = lambda cmd: unreal.SystemLibrary.execute_console_command(None, cmd)
-    # Python can't set USkeleton::BoneTree or VirtualBoneGuid (not editable properties); the console "set" command can.
     modes = ",".join(f"(TranslationRetargetingMode={'Skeleton' if n in OWN_BONES else 'Animation'})" for n in bone_names)
     run(f"setnopec {skel.get_path_name()} BoneTree ({modes})")
-    # animations are cooked against the game skeleton's virtual-bone guid; a different one makes them unplayable
-    # (a zero guid isn't written to the dump at all; Godzilla 2000's skeleton has one)
     vguid = gskel["Properties"].get("VirtualBoneGuid", "0" * 32).replace("-", "")
     run(f"setnopec {skel.get_path_name()} VirtualBoneGuid {vguid}")
     log(f"skeleton: {len(OWN_BONES)} of {len(bone_names)} bones take their position from the mesh; virtual bone guid {vguid}")
-    # the game skeleton's sockets (hit spheres, beam origin, footsteps, eye tracking...), on the same bones
     n_sock = 0
     for e in dump:
         if e["Type"] != "SkeletalMeshSocket":
             continue
         p = e["Properties"]
-        # AddSocket wants the mesh as the outer; with add_to_skeleton it also puts a copy on the skeleton
         s = unreal.new_object(unreal.SkeletalMeshSocket, outer=sk_mesh, name=f"GZSocket_{n_sock}")
         loc, rot, scl = p.get("RelativeLocation", {}), p.get("RelativeRotation", {}), p.get("RelativeScale", {})
-        # socket fields are read-only to Python; set them through the console like the skeleton fields above
         for prop, val in (("SocketName", p["SocketName"]), ("BoneName", p["BoneName"]),
                           ("RelativeLocation", f"(X={loc.get('X', 0)},Y={loc.get('Y', 0)},Z={loc.get('Z', 0)})"),
                           ("RelativeRotation", f"(Pitch={rot.get('Pitch', 0)},Yaw={rot.get('Yaw', 0)},Roll={rot.get('Roll', 0)})"),
@@ -177,7 +152,6 @@ if SHIP_SKEL:
     eal.save_loaded_asset(skel, False)
     eal.save_loaded_asset(sk_mesh, False)
 
-# --- stand-in materials at the game's material paths -------------------------------------------
 stand_in = {}
 for name in dict.fromkeys(SLOT_MI.values()):
     mic = tools.create_asset(name, f"{HOME}/Materials", unreal.MaterialInstanceConstant,
@@ -204,7 +178,6 @@ mesh.set_editor_property("materials", new_mats)
 mesh.set_editor_property("physics_asset", unreal.load_asset(PHYS))
 eal.save_loaded_asset(mesh)
 
-# --- textures --------------------------------------------------------------------------------
 tex_assets = []
 all_textures = {name: (f"{HOME}/Textures", kind) for name, kind in TEXTURES.items()}
 all_textures.update(globals().get("EXTRA_TEXTURES", {}))
@@ -219,7 +192,6 @@ for name, (folder, (comp, srgb, group)) in all_textures.items():
     eal.save_loaded_asset(t)
     tex_assets.append(t)
 
-# --- chunk labels: 1 = ship, 0 = stand-ins -------------------------------------------------------
 def make_label(name, chunk, priority, assets):
     path = f"/Game/ModLabels/{name}"
     if eal.does_asset_exist(path):
@@ -236,7 +208,6 @@ def make_label(name, chunk, priority, assets):
     label.set_editor_property("label_assets_in_my_directory", False)
     label.set_editor_property("explicit_assets", assets)
     eal.save_loaded_asset(label)
-
 
 mesh = unreal.load_asset(MESH)
 shipped_skel = [unreal.load_asset(SKEL)] if SHIP_SKEL else []

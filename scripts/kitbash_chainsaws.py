@@ -1,13 +1,3 @@
-"""Wii Final Wars Gigan with the PS3 model's chainsaw hands.
-
-Both inputs are already fitted to the game skeleton, so the parts line up at the wrists:
-  - the Wii blades (vertices driven mostly by the Hand bones) are removed,
-  - the PS3 chainsaw assemblies (vertices driven mostly by the Forearm/wrist bones) are copied in, staying on the
-    wrist bone so they move like arm-mounted saws, not like hooks,
-  - the saws are re-UV'd onto the Wii texture's blade metal, so they wear the same metal as the hook hands did.
-
-Usage: blender -b gigan_fw_final.blend --python kitbash_chainsaws.py -- <gigan_ps3_fitted.blend> <out.blend>
-"""
 import sys
 import bpy, bmesh
 import numpy as np
@@ -17,13 +7,10 @@ ps3_blend, out_blend = sys.argv[sys.argv.index("--") + 1:]
 body = bpy.data.objects["SK_GZPro_Gigan_FW"]
 SIDES = ("L", "R")
 
-
 def dominant(ob):
     idx = {g.index: g.name for g in ob.vertex_groups}
     return [idx[max(v.groups, key=lambda g: g.weight).group] if v.groups else None for v in ob.data.vertices]
 
-
-# --- blade UV area on the Wii texture (where the hook-hand metal lives) -------------------------
 dom = dominant(body)
 uv = body.data.uv_layers.active.data
 blade_uv = {s: [] for s in SIDES}
@@ -32,14 +19,11 @@ for poly in body.data.polygons:
         if all(dom[vi] == f"Bip01_{s}_Hand" for vi in poly.vertices):
             blade_uv[s] += [tuple(uv[li].uv) for li in poly.loop_indices]
 uvs = np.array(blade_uv["L"] + blade_uv["R"])
-u0, v0 = np.percentile(uvs, 10, axis=0)  # inner part of the blade islands, away from their edges
+u0, v0 = np.percentile(uvs, 10, axis=0)
 u1, v1 = np.percentile(uvs, 90, axis=0)
 print(f"[saw] blade metal UV area u {u0:.3f}..{u1:.3f} v {v0:.3f}..{v1:.3f}")
 
-# --- the line each Wii blade runs along, measured before the blades go ---------------------------
-# The PS3 saws arrive at the PS3 forearm's angle, which kinks upward off the Wii forearm and leaves a gap. Each saw
-# is turned onto its blade's line and slid back so its housing overlaps the Wii forearm cuff.
-OVERLAP = 2.0  # how far the saw housing reaches back past where the blade started, working units
+OVERLAP = 2.0
 rig = body.parent
 blade = {}
 for s in SIDES:
@@ -52,7 +36,6 @@ for s in SIDES:
     start = ((pts - np.array(pivot)) @ axis).min()
     blade[s] = (pivot, Vector(axis), start)
 
-# --- remove the Wii blades ----------------------------------------------------------------------
 bm = bmesh.new()
 bm.from_mesh(body.data)
 bm.verts.ensure_lookup_table()
@@ -65,7 +48,6 @@ bm.to_mesh(body.data)
 bm.free()
 print(f"[saw] removed {len(kill)} blade faces")
 
-# --- bring in the PS3 chainsaws -----------------------------------------------------------------
 with bpy.data.libraries.load(ps3_blend) as (src, dst):
     dst.objects = ["SK_GZPro_Gigan_FW"]
 saw = dst.objects[0]
@@ -102,7 +84,6 @@ for s in SIDES:
     print(f"[saw] {s} chainsaw turned {saxis.angle(baxis) * 57.2958:.0f} deg onto the blade line, moved {shift.length:.1f}")
 saw.data.update()
 
-# --- re-UV the saws onto the blade metal: planar projection on each saw's two longest axes ------
 suv = saw.data.uv_layers.active.data
 for s in SIDES:
     vids = [i for i, d in enumerate(sdom) if d == f"Bip01_{s}_Forearm"]
@@ -123,7 +104,6 @@ for m in body.data.materials:
 for poly in saw.data.polygons:
     poly.material_index = 0
 
-# --- merge into the Wii mesh ---------------------------------------------------------------------
 bpy.ops.object.select_all(action="DESELECT")
 saw.select_set(True)
 body.select_set(True)

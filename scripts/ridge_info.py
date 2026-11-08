@@ -6,9 +6,8 @@ idx = {g.index: g.name for g in body.vertex_groups}
 pel = arm.data.bones["Bip01_Pelvis"].head_local; saw = arm.data.bones["Bip01_BuzzSaw"].head_local
 head = arm.data.bones["Bip01_Head"].head_local
 tip = arm.data.bones["Bip01_Tail16"].head_local
-front = -1 if tip.y > pel.y else 1  # front is away from the tail
+front = -1 if tip.y > pel.y else 1
 print(f"[r] pelvis {tuple(round(x,1) for x in pel)} buzzsaw {tuple(round(x,1) for x in saw)} front sign {front}")
-# vertices in the front-centre band of the torso, sticking out in front of the pelvis
 c = Counter(); n = 0; tailish = 0; zs = []
 for v in body.data.vertices:
     if abs(v.co.x) < 6 and (v.co.y - pel.y) * front > 6 and 25 < v.co.z < 80:

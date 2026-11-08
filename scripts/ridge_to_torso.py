@@ -1,8 +1,3 @@
-"""Move the Final Wars belly ridge off Bip01_BuzzSaw. That bone sits at hip height on the lower spine (and the game's
-buzzsaw control rig spins it), so the ridge swung with the hips into the tail and legs. Re-weight it to the torso
-by height instead: Spine at the bottom, blending to Spine1 and then Neck up the chest.
-Usage: blender -b in.blend --python ridge_to_torso.py -- <out.blend>
-"""
 import sys
 import bpy
 

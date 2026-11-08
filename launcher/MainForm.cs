@@ -1,14 +1,11 @@
 namespace GiganSkinLauncher;
 
-/// <summary>Two views: the Monsters home screen (one card per monster) and a monster's skins (one card per skin).
-/// The MONSTERS link in the top bar always returns home.</summary>
 public sealed class MainForm : Form
 {
     static readonly Color Bg = Color.FromArgb(14, 14, 18);
     static readonly Color Red = Color.FromArgb(225, 38, 38);
     const string Note = "Note: Skins are for offline-only use. Use online at your own risk or make sure to switch back to the original look before playing online.";
 
-    // GIGAN_LAUNCHER_NO_AUTODETECT=1 skips the Steam lookup, to try the "browse for game folder" path
     GameInstall? _game = Environment.GetEnvironmentVariable("GIGAN_LAUNCHER_NO_AUTODETECT") == "1" ? null : GameInstall.Find();
     readonly List<Monster> _monsters = Monster.Load(Path.Combine(AppContext.BaseDirectory, "skins"));
     readonly TableLayoutPanel _strip = new() { Dock = DockStyle.Fill, RowCount = 1, Margin = Padding.Empty, Padding = Padding.Empty, BackColor = Bg };
@@ -33,7 +30,6 @@ public sealed class MainForm : Form
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.CenterScreen;
 
-        // top bar: MONSTERS / <monster>, tagline on the right
         var header = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Bg };
         var sub = new Label { Text = "P.S. Gigan is daddy", AutoSize = true, ForeColor = Color.Silver, Font = new Font("Segoe UI", 11f) };
         _home.Location = new Point(22, 16);
@@ -47,7 +43,6 @@ public sealed class MainForm : Form
         _home.MouseEnter += (_, _) => { if (_monster is not null) _home.ForeColor = Color.White; };
         _home.MouseLeave += (_, _) => _home.ForeColor = _monster is null ? Red : Color.Gray;
 
-        // bottom bar: note + buttons
         var bottom = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 72, ColumnCount = 4, Padding = new Padding(24, 14, 24, 14), BackColor = Bg };
         bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         for (var i = 0; i < 3; i++) bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -66,7 +61,6 @@ public sealed class MainForm : Form
         }
         _launch.BackColor = Red;
         _launch.FlatAppearance.BorderColor = Red;
-        // flat buttons keep their colour when disabled; grey the red one out so it doesn't look clickable
         _launch.EnabledChanged += (_, _) =>
         {
             _launch.BackColor = _launch.Enabled ? Red : Color.FromArgb(40, 40, 48);
@@ -128,7 +122,7 @@ public sealed class MainForm : Form
             string? tag = active is not null && active.Id != Skin.OriginalId ? $"IN GAME: {active.Name.ToUpperInvariant()}" : null;
             return (m.AsCard, tag, (Action)(() => ShowMonster(m)), (Action?)null);
         }));
-        foreach (var c in _cards) c.Selected = true;  // home cards all lit
+        foreach (var c in _cards) c.Selected = true;
     }
 
     void ShowMonster(Monster m)
@@ -183,7 +177,7 @@ public sealed class MainForm : Form
     {
         base.OnHandleCreated(e);
         var dark = 1;
-        DwmSetWindowAttribute(Handle, 20, ref dark, sizeof(int));  // DWMWA_USE_IMMERSIVE_DARK_MODE
+        DwmSetWindowAttribute(Handle, 20, ref dark, sizeof(int));
     }
 
     void ApplySelected(bool launch)

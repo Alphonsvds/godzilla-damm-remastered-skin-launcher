@@ -1,23 +1,13 @@
-﻿# Rebuilds a skin mod end to end and drops it into its launcher slot.
-#   .\build_all.ps1            Wii Final Wars  -> skins\gigan\finalwars_wii_dev  (test slot; finalwars_wii is the kept one)
-#   .\build_all.ps1 -Skin ps3  PS3 Final Wars  -> archive\skins\finalwars_ps3 (not in the launcher)
-#   .\build_all.ps1 -Skin wiisaw  Wii Final Wars with the PS3 chainsaw hands -> skins\gigan\finalwars_wii_saw_dev
-#   .\build_all.ps1 -Skin g2004   2004 (Final Wars) Godzilla over Godzilla 2000 -> skins\godzilla\godzilla_2004
-#   .\build_all.ps1 -Skin g2004h  2004 (Final Wars) Godzilla over the regular (Heisei) Godzilla -> skins\heisei\godzilla_2004
-# Model steps differ per skin; Unreal import -> cook -> pack -> verify -> launcher slot are shared.
-param([ValidateSet("wii", "ps3", "wiisaw", "g2004", "g2004h")] [string]$Skin = "wii")
-$ErrorActionPreference = "Continue"  # tools write warnings to stderr; failures are caught via exit codes
+﻿param([ValidateSet("wii", "ps3", "wiisaw", "g2004", "g2004h")] [string]$Skin = "wii")
+$ErrorActionPreference = "Continue"
 $P = $PSScriptRoot
 $Blender = "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 $UE = "C:\Program Files\Epic Games\UE_5.8\Engine"
 $Bones = "$P\work\game\bones_SKEL_GZ1.json"
 $Glb = "$P\work\game\export\GZPro\Content\Characters\GZPro_Monsters\Gigan\SK_GZPro_Gigan.glb"
 $Proj = "C:\Users\halst\GiganModUE\GZPro\GZPro.uproject"
-# the PS3 build is archived (not shown in the launcher), so it is written outside skins\
-# wii and wiisaw build into test cards; promote.ps1 copies a test card over the kept one once it looks right
 $Slot = @{ wii = "gigan\finalwars_wii_dev"; ps3 = "..\..\archive\skins\finalwars_ps3"; wiisaw = "gigan\finalwars_wii_saw_dev"
            g2004 = "godzilla\godzilla_2004"; g2004h = "heisei\godzilla_2004" }[$Skin]
-# per-monster target: which game mesh is replaced, where the export goes, the mod's file name
 $Target = @{ g2004 = "godzilla2k"; g2004h = "heisei" }[$Skin]; if (-not $Target) { $Target = "gigan" }
 $Export = @{ g2004 = "$P\export\godzilla2004"; g2004h = "$P\export\heisei2004" }[$Skin]; if (-not $Export) { $Export = "$P\export" }
 $ModName = @{ godzilla2k = "zGodzilla2004_P"; heisei = "zHeisei2004_P"; gigan = "zGiganFW_P" }[$Target]
@@ -38,17 +28,15 @@ function Textures($script, $src) {
 
 if ($Skin -like "g2004*") {
     $W = "$P\work\godzilla"
-    if ($Skin -eq "g2004h") {  # regular Godzilla: same Bip01 rig as Godzilla 2000, its own slot and texture names
+    if ($Skin -eq "g2004h") {
         $GB = "$W\game\bones_SKEL_GZ1_HeiseiGodzilla.json"
         $GGlb = "$W\game\export\GZPro\Content\Characters\GZPro_Monsters\HeiseiGodzilla\SK_GZPro_HeiseiGodzilla.glb"
-        # own-upper: upper-body bones sit at the model's own joints (the mod ships a skeleton that uses them)
         $T, $MeshName, $Slots, $TexTarget, $Who = "h2004", "SK_GZPro_HeiseiGodzilla", @("body_mat", "spines_mat", "own-upper"), "heisei", "regular Godzilla"
-        $TorsoXfer = ""  # bones sit at the model's own joints, so it keeps its own weights (no game-mesh transfer)
+        $TorsoXfer = ""
         $env:GZ_SKEL_JSON = "$W\game\SKEL_GZ1_HeiseiGodzilla.json"
     } else {
         $GB = "$W\game\bones_SKEL_GZ1_Godzilla2k.json"
         $GGlb = "$W\game\export\GZPro\Content\Characters\GZPro_Monsters\Godzilla2k\SK_GZPro_Godzilla2k.glb"
-        # same as the regular Godzilla: own upper-body/thigh joints, the model's own weights, shipped skeleton
         $T, $MeshName, $TexTarget, $Who = "g2004", "SK_GZPro_Godzilla2k", "g2k", "Godzilla 2000"
         $Slots = @("Godzilla2k_Mesh_body_mtl", "Godzilla2k_Mesh_spines_mtl", "own-upper")
         $TorsoXfer = ""
@@ -77,7 +65,6 @@ if ($Skin -like "g2004*") {
             Where-Object { $_ -match '^\[|Error' } | ForEach-Object { "   $_" }
     }
     if ($Skin -eq "g2004") {
-        # the game's Burning Millennium skin puts its own textures on this mesh: bake them onto the 2004 model
         $BT = "$W\game\burning\GZPro\Content\Characters\GZPro_Monsters\Godzilla2k\Skins\2kBurningGodzilla\Textures"
         Step "Burning skin textures" { Blend "$W\$($T)_final.blend" "bake_burning.py" @($GGlb, $BT, "$Export\textures", "$Export\plates_mask.png", "$Export\textures") }
     }
@@ -87,7 +74,6 @@ if ($Skin -like "g2004*") {
     Step "belly ridge onto torso"         { Blend "$P\work\gigan_fw_fitted_v2.blend" "ridge_to_torso.py" @("$P\work\gigan_fw_fitted_v2.blend") }
     Step "double-sided wings"             { Blend "$P\work\gigan_fw_fitted_v2.blend" "double_side.py" @("$P\work\gigan_fw_final.blend") }
     Step "soften jaw"                     { Blend "$P\work\gigan_fw_final.blend" "soften_jaw.py" @("$P\work\gigan_fw_final.blend", "0.6") }
-    # lift_feet.py is not used for the Wii model: raising the soles stretched the ankles
     $final = "$P\work\gigan_fw_final.blend"
     if ($Skin -eq "wiisaw") {
         Step "fit PS3 model (for its chainsaws)" { Blend "$P\work\gigan_ps3.blend" "fit_ps3.py" @($Bones, "$P\work\gigan_ps3_fitted.blend") }
@@ -105,7 +91,6 @@ if ($Skin -like "g2004*") {
 }
 
 Step "Unreal import" {
-    # start from clean generated content so renames onto the game's asset paths can't collide
     $content = Join-Path (Split-Path $Proj) "Content"
     foreach ($d in "Characters", "ModLabels") {
         if (Test-Path "$content\$d") { Remove-Item -LiteralPath "$content\$d" -Recurse -Force }

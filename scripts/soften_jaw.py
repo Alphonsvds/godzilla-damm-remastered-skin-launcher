@@ -1,13 +1,9 @@
-"""The game opens Gigan's jaw by rotating Bip01_Ponytail1. The Wii lower jaw is longer than the Remastered
-beak, so the same rotation drops it much further. Hand part of the jaw's weight to the head so it opens less.
-Usage: blender -b in.blend --python soften_jaw.py -- <out.blend> [jaw_share=0.6]
-"""
 import sys
 import bpy
 
 args = sys.argv[sys.argv.index("--") + 1:]
 out_blend = args[0]
-share = float(args[1]) if len(args) > 1 else 0.6  # how much of the animated jaw motion to keep
+share = float(args[1]) if len(args) > 1 else 0.6
 
 body = bpy.data.objects["SK_GZPro_Gigan_FW"]
 jaw = body.vertex_groups["Bip01_Ponytail1"]

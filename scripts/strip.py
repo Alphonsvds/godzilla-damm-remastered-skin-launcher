@@ -1,4 +1,3 @@
-"""Stitch PNGs side by side. Usage: blender -b --python strip.py -- out.png in1.png in2.png ..."""
 import sys, bpy
 import numpy as np
 

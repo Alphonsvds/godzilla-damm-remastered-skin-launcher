@@ -1,6 +1,3 @@
-"""Point the fitted model's two slots at the built game textures (colour only), for preview renders.
-Usage: blender -b fitted.blend --python preview_textures.py -- <textures_dir> <prefix> [out.blend]
-Slot 0 gets <prefix>_body_C.png, slot 1 <prefix>_spines_C.png; saves in place unless out.blend is given."""
 import sys, os, bpy
 tex, prefix, *rest = sys.argv[sys.argv.index("--") + 1:]
 body = next(o for o in bpy.data.objects if o.type == "MESH")

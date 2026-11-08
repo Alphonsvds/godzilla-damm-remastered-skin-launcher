@@ -1,7 +1,3 @@
-"""Give the Wii's single-sided parts (wing membranes, wii_part == 4) a flipped back face, because the game
-material renders front faces only. Back-face loops get the negated normal of the matching front loop.
-Usage: blender -b in.blend --python double_side.py -- <out.blend> [part,part...]
-"""
 import sys
 import bpy, bmesh
 
@@ -11,7 +7,6 @@ parts = {int(p) for p in args[1].split(",")} if len(args) > 1 else {4}
 
 body = bpy.data.objects["SK_GZPro_Gigan_FW"]
 me = body.data
-# per-corner normals as the mesh currently has them, keyed by (face, vertex)
 loop_normals = {}
 for poly in me.polygons:
     for li in poly.loop_indices:
@@ -24,13 +19,12 @@ src_faces = [f for f in bm.faces if f[part_layer] in parts]
 src_index = {f: f.index for f in src_faces}
 dup = bmesh.ops.duplicate(bm, geom=src_faces)
 new_faces = [g for g in dup["geom"] if isinstance(g, bmesh.types.BMFace)]
-face_map = dup["face_map"]  # old -> new and new -> old
+face_map = dup["face_map"]
 vert_map = dup["vert_map"]
 bmesh.ops.reverse_faces(bm, faces=new_faces)
 bm.faces.index_update()
 bm.verts.index_update()
 
-# back-face normals: negate the front face's normal at the original vertex
 inv_vert = {}
 for k, v in vert_map.items():
     if isinstance(k, bmesh.types.BMVert) and isinstance(v, bmesh.types.BMVert):

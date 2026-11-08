@@ -1,9 +1,4 @@
 param([ValidateSet("gigan", "godzilla2k", "heisei")] [string]$Target = "gigan", [string]$Name = "")
-# Packs only the shipped skin assets (mesh + textures) from the cooked GZPro project into an
-# IoStore mod: <Name>.pak / .utoc / .ucas. Stand-ins (skeleton, physics asset, material) are left out.
-#   gigan       -> zGiganFW_P        (Final Wars Gigan over SK_GZPro_Gigan)
-#   godzilla2k  -> zGodzilla2004_P   (2004 Godzilla over SK_GZPro_Godzilla2k)
-#   heisei      -> zHeisei2004_P     (2004 Godzilla over the regular Godzilla, SK_GZPro_HeiseiGodzilla)
 if (-not $Name) { $Name = @{ gigan = "zGiganFW_P"; godzilla2k = "zGodzilla2004_P"; heisei = "zHeisei2004_P" }[$Target] }
 $ErrorActionPreference = "Stop"
 $U = "C:\Users\halst\GiganModUE\GZPro"
@@ -15,18 +10,15 @@ Remove-Item "$Out\*" -Force -ErrorAction SilentlyContinue
 
 if ($Target -eq "godzilla2k") {
     $home_ = "Characters/GZPro_Monsters/Godzilla2K"
-    # the skeleton ships too: a copy of the game's whose upper-body and thigh bones take their positions from the mesh
     $ship = @("$home_/SK_GZPro_Godzilla2k", "Characters/GZ1_Monsters/Godzilla2K/SKEL_GZ1_Godzilla2k_Skeleton") +
             @("body_C", "body_N", "body_AOR", "body_H", "body_MSK", "body_ATK_MSK",
               "spines_C", "spines_N", "spines_AOR", "spines_E", "spines_MSK", "spines_ATK_MSK" |
               ForEach-Object { "$home_/Textures/Godzilla2k_LP_$_" }) +
-            # the Burning Millennium skin's textures, redone for the 2004 model (bake_burning.py)
             @("Body_C", "Body_N", "Body_AORM", "Body_E", "Body_H", "Body_MSK", "spines_C", "spines_N", "spines_AORM",
               "spines_E", "spines_MSK" | ForEach-Object { "$home_/Skins/2kBurningGodzilla/Textures/2kBurningGodzilla_LP_$_" })
     $readmeName, $readmeText = "Godzilla2004.txt", "2004 (Final Wars) Godzilla skin for Godzilla DAMM Remastered. Model by JJJ and MMDCharizard."
 } elseif ($Target -eq "heisei") {
     $home_ = "Characters/GZPro_Monsters/HeiseiGodzilla"
-    # the skeleton ships too: a copy of the game's whose upper-body bones take their positions from the mesh
     $ship = @("$home_/SK_GZPro_HeiseiGodzilla", "Characters/GZ1_Monsters/HeiseiGodzilla/SKEL_GZ1_HeiseiGodzilla_Skeleton") +
             @("Body", "Spines" | ForEach-Object { $p = $_; "C", "N", "AORM", "H", "MSK", "ATK_MSK" |
               ForEach-Object { "$home_/Textures/HeiseiGodzilla_$($p)_LP_$_" } })
@@ -40,7 +32,7 @@ $missing = $ship | Where-Object { -not (Test-Path (Join-Path "$Cooked\GZPro\Cont
 if ($missing) { throw "not cooked: $($missing -join ', ')" }
 
 $lines = foreach ($a in $ship) {
-    foreach ($ext in ".uasset", ".ubulk") {  # .uexp is picked up with its .uasset
+    foreach ($ext in ".uasset", ".ubulk") {
         $src = Join-Path "$Cooked\GZPro\Content" ($a.Replace("/", "\") + $ext)
         if (Test-Path $src) { "`"$src`" `"../../../GZPro/Content/$a$ext`" -compress" }
     }
@@ -50,7 +42,6 @@ $resp = "$Out\files.txt"
 $cmds = "$Out\commands.txt"
 [IO.File]::WriteAllText($cmds, "-Output=`"$Out\$Name.utoc`" -ContainerName=$Name -ResponseFile=`"$resp`"")
 
-# IoStore containers are mounted through a .pak of the same name; give it one small loose file.
 $readme = "$Out\$readmeName"
 $readmeText | Set-Content $readme
 [IO.File]::WriteAllText("$Out\pak.txt", "`"$readme`" `"../../../GZPro/Content/Mods/$readmeName`"")

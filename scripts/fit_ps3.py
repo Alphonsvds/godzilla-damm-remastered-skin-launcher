@@ -1,13 +1,3 @@
-"""Fit the PS3 (Godzilla 2014) Final Wars Gigan onto the Remastered game's SKEL_GZ1_Gigan_Skeleton.
-
-The PS3 rig (joint1..joint43) is mapped onto game bones by role, aligned by a similarity transform, then each
-mapped joint is moved onto its game joint: rotated so its segment points the same way as the game's (swing only,
-the PS3 model keeps its own twist) and, for limbs, stretched to the game's segment length. The pose is baked with
-plain linear blend skinning, so stretch is allowed. Output uses the same object names as the Wii fit so
-export_fbx.py / ue_import.py work unchanged.
-
-Usage: blender -b gigan_ps3.blend --python fit_ps3.py -- <bones.json> <out.blend>
-"""
 import sys, os, re
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -24,7 +14,6 @@ J = {b.name: b.head_local.copy() for b in ps3.data.bones}
 JP = {b.name: (b.parent.name if b.parent else None) for b in ps3.data.bones}
 meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.parent == ps3]
 
-# joint -> game bone. Arms: the game's UpperArm runs shoulder->wrist, so the PS3 elbow (joint10/23) is folded in.
 MAP = {
     "joint1": "Bip01_Pelvis", "joint2": "Bip01_Spine", "joint3": "Bip01_Spine1", "joint5": "Bip01_Neck",
     "joint13": "Bip01_Neck1", "joint14": "Bip01_Head",
@@ -33,12 +22,10 @@ MAP = {
     "joint27": "Bip01_L_Thigh", "joint28": "Bip01_L_Calf", "joint29": "Bip01_L_Foot", "joint30": "Bip01_L_Toe0",
     "joint31": "Bip01_R_Thigh", "joint32": "Bip01_R_Calf", "joint33": "Bip01_R_Foot", "joint34": "Bip01_R_Toe0",
 }
-# joint -> joint it moves with (and whose game bone it is weighted to); jaw is the exception, see JAW.
 FOLLOW = {"joint4": "joint3", "joint6": "joint5", "joint12": "joint5", "joint25": "joint5", "joint26": "joint5",
           "joint8": "joint7", "joint10": "joint9", "joint21": "joint20", "joint23": "joint22",
           "joint15": "joint14", "joint16": "joint14", "joint17": "joint14", "joint18": "joint14", "joint19": "joint14"}
-JAW = {"joint17": "Bip01_Ponytail1", "joint16": "Bip01_Ponytail1"}  # moves with the head at rest, animated as the jaw
-# segment direction: joint -> (child joint, game child bone); limbs in STRETCH also match length
+JAW = {"joint17": "Bip01_Ponytail1", "joint16": "Bip01_Ponytail1"}
 CHILD = {"joint1": ("joint2", "Bip01_Spine"), "joint2": ("joint3", "Bip01_Spine1"), "joint3": ("joint5", "Bip01_Neck"),
          "joint5": ("joint13", "Bip01_Neck1"), "joint13": ("joint14", "Bip01_Head"),
          "joint7": ("joint9", "Bip01_L_UpperArm"), "joint9": ("joint11", "Bip01_L_Forearm"),
@@ -54,16 +41,13 @@ Malign, s = umeyama([J[k] for k in core], [G[MAP[k]] for k in core])
 A = {k: Malign @ v for k, v in J.items()}
 print(f"[ps3] align scale {s:.3f}; left arm check: joint7 x={A['joint7'].x:+.1f} vs game L_Clavicle x={G['Bip01_L_Clavicle'].x:+.1f}")
 
-
 def stretch(axis, k):
     a = axis.normalized()
     m = Matrix.Identity(3) + (k - 1) * Matrix([[a.x * a.x, a.x * a.y, a.x * a.z], [a.y * a.x, a.y * a.y, a.y * a.z], [a.z * a.x, a.z * a.y, a.z * a.z]])
     return m.to_4x4()
 
-
-# per-joint world transform: v' = M @ v
 Mj, Rj = {}, {}
-order = [b.name for b in ps3.data.bones]  # parents before children
+order = [b.name for b in ps3.data.bones]
 for j in order:
     if j in MAP:
         g = MAP[j]
@@ -81,7 +65,6 @@ for j in order:
         t = FOLLOW.get(j, "joint14")
         Rj[j], Mj[j] = Rj[t], Mj[t]
 
-# tail: spread the 9 PS3 tail joints along the 17-bone game tail by arc length
 def arclen(pts):
     acc = [0.0]
     for a, b in zip(pts, pts[1:]):
@@ -101,7 +84,7 @@ g_pts = [G[n] for n in GAME_TAIL]
 g_pts.append(g_pts[-1] + (g_pts[-1] - g_pts[-2]))
 p_acc, g_acc = arclen(p_pts), arclen(g_pts)
 print(f"[ps3] tail length ps3={p_acc[-1]:.1f} game={g_acc[-1]:.1f}")
-tail_seg = {}  # PS3 tail joint -> its segment on the game tail after the move (for re-weighting)
+tail_seg = {}
 for i, j in enumerate(PS3_TAIL):
     q0 = at(g_pts, g_acc, p_acc[i] / p_acc[-1] * g_acc[-1])
     q1 = at(g_pts, g_acc, p_acc[i + 1] / p_acc[-1] * g_acc[-1])
@@ -114,24 +97,19 @@ for i, j in enumerate(PS3_TAIL):
 missing = [j for j in order if j not in Mj]
 print(f"[ps3] joints without a transform: {missing}")
 
-# Chainsaws ride the game's wrist bone (Forearm), not Hand: the game flicks Hand around for hook swipes, which threw
-# the bulky saws across his face. In the film they are mounted along the forearm, so they stay an arm extension.
-# CHAINSAW_TURN=True instead points them the way the game's hook hangs (tried: still blocked the face in idle).
 CHAINSAW_SCALE = 0.85
 CHAINSAW_TURN = False
 GLB = os.path.join(os.path.dirname(bones_json), "export", "GZPro", "Content", "Characters", "GZPro_Monsters", "Gigan", "SK_GZPro_Gigan.glb")
 before = set(bpy.data.objects)
 bpy.ops.import_scene.gltf(filepath=GLB)
 gmesh = next(o for o in bpy.data.objects if o not in before and o.type == "MESH" and o.name.startswith("SK_GZPro_Gigan"))
-gm = Matrix.Scale(100, 4) @ gmesh.matrix_world  # raw glb verts are /100 (see game_anim_test.py)
+gm = Matrix.Scale(100, 4) @ gmesh.matrix_world
 gidx = {g.index: g.name for g in gmesh.vertex_groups}
-
 
 def centroid(ob, mat, pick):
     idx = {g.index: g.name for g in ob.vertex_groups}
     pts = [mat @ v.co for v in ob.data.vertices if v.groups and pick(idx[max(v.groups, key=lambda g: g.weight).group])]
     return sum(pts, Vector()) / len(pts)
-
 
 for side, saw in (("L", "joint11"), ("R", "joint24")):
     hand = G[f"Bip01_{side}_Hand"]
@@ -148,8 +126,6 @@ for side, saw in (("L", "joint11"), ("R", "joint24")):
 for o in [o for o in bpy.data.objects if o not in before]:
     bpy.data.objects.remove(o)
 
-# The PS3 foot has more geometry below its ankle than the game's, so after the move the soles end up under the
-# ground. Lift the feet (and half that at the knees) so the lowest foot vertex sits at the game's floor.
 FEET, KNEES = ("joint29", "joint30", "joint33", "joint34"), ("joint28", "joint32")
 low = 1e9
 for ob in meshes:
@@ -158,7 +134,7 @@ for ob in meshes:
         if v.groups and idx[max(v.groups, key=lambda g: g.weight).group] in FEET:
             j = idx[max(v.groups, key=lambda g: g.weight).group]
             low = min(low, (Mj[j] @ v.co).z)
-FLOOR = -0.6  # the game mesh's lowest point, in working units
+FLOOR = -0.6
 lift = max(0.0, FLOOR - low)
 for j in FEET:
     Mj[j] = Matrix.Translation((0, 0, lift)) @ Mj[j]
@@ -166,7 +142,6 @@ for j in KNEES:
     Mj[j] = Matrix.Translation((0, 0, lift / 2)) @ Mj[j]
 print(f"[ps3] feet lifted by {lift:.1f} (lowest foot vertex was {low:.1f})")
 
-# --- bake (linear blend skinning in numpy) ---
 for ob in meshes:
     me = ob.data
     n = len(me.vertices)
@@ -192,7 +167,6 @@ for ob in meshes:
     me.normals_split_custom_set(new_n)
     me.update()
 
-# --- re-weight to game bones ---
 def game_bone(j):
     if j in JAW:
         return JAW[j]
@@ -200,8 +174,6 @@ def game_bone(j):
         j = FOLLOW[j]
     return MAP[j]
 
-# Tail weights move bone by bone along the tail's length (never "closest game tail bone": the game tail curls,
-# and a nearest-point search sends hip/belly vertices to the tail tip).
 def tail_param(co, j):
     q0, q1, f0, f1 = tail_seg[j]
     ab = q1 - q0
@@ -244,7 +216,6 @@ for ob in meshes:
             groups[name].add([vi], w, "REPLACE")
     ob.modifiers.clear()
 
-# --- one mesh on the game skeleton ---
 bpy.ops.object.select_all(action="DESELECT")
 for ob in meshes:
     ob.parent = None

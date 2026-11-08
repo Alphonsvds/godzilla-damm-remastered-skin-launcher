@@ -1,14 +1,9 @@
-"""Shared helpers: build the game's SKEL_GZ1_Gigan_Skeleton in Blender space from the CUE4Parse bone dump,
-and read the Wii armature's joint frames."""
 import json, math
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 
-# Max/Biped joints point down local +X; Blender bones point down local +Y.
 TO_BONE = Matrix.Rotation(math.radians(-90), 4, "Z")
-# UE (left-handed, Z up) -> Blender (right-handed, Z up): flip Y, same as the FBX round trip.
 FLIP = Matrix.Diagonal((1, -1, 1, 1))
-
 
 def ue_local(b):
     t = Matrix.Translation(Vector(b["t"]))
@@ -17,9 +12,7 @@ def ue_local(b):
     s = Matrix.Diagonal((*b["s"], 1))
     return t @ r @ s
 
-
 def game_world(bones_json):
-    """name -> (parent name, world matrix in Blender space, scale included)."""
     bones = json.load(open(bones_json))["bones"]
     world_ue, out = [], {}
     for b in bones:
@@ -29,19 +22,14 @@ def game_world(bones_json):
         out[b["name"]] = (bones[b["parent"]]["name"] if b["parent"] >= 0 else None, FLIP @ w @ FLIP)
     return out, [b["name"] for b in bones]
 
-
 def rot_only(m):
     return m.to_3x3().normalized().to_4x4()
 
-
 def wii_world(arm):
-    """name -> (parent name, joint world matrix in Blender space)."""
     return {b.name: (b.parent.name if b.parent else None, arm.matrix_world @ b.matrix_local @ TO_BONE.inverted())
             for b in arm.data.bones}
 
-
 def build_armature(name, world, order, unit_scale=1.0):
-    """Create an armature whose bones carry the given joint frames (scale stripped, positions * unit_scale)."""
     data = bpy.data.armatures.new(name)
     ob = bpy.data.objects.new(name, data)
     bpy.context.scene.collection.objects.link(ob)
@@ -60,9 +48,7 @@ def build_armature(name, world, order, unit_scale=1.0):
     bpy.ops.object.mode_set(mode="OBJECT")
     return ob
 
-
 def anim_frame_world(anim, frame, parents, unit_scale):
-    """Armature-space (Blender) pose frames for one animation frame: name -> 4x4 (no scale)."""
     names = anim["bones"]
     world_ue, out = {}, {}
     for i, nm in enumerate(names):
@@ -76,9 +62,7 @@ def anim_frame_world(anim, frame, parents, unit_scale):
         out[nm] = f
     return out
 
-
 def apply_pose(arm, pose):
-    """Set pose bones so each bone's armature-space matrix equals pose[name] (bones not listed keep rest)."""
     for pb in arm.pose.bones:
         pb.rotation_mode = "QUATERNION"
     def solved(pb):
@@ -93,9 +77,7 @@ def apply_pose(arm, pose):
         else:
             pb.matrix_basis = pb.bone.matrix_local.inverted() @ P
 
-
 def umeyama(src, dst, with_scale=True):
-    """Similarity transform (4x4) mapping src points onto dst points (least squares)."""
     import numpy as np
     A, B = np.array([tuple(p) for p in src]), np.array([tuple(p) for p in dst])
     ma, mb = A.mean(0), B.mean(0)

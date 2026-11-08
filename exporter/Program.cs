@@ -1,8 +1,3 @@
-// Small headless exporter for Godzilla DAMM Remastered (UE 5.8) assets.
-//   gzexport list <regex>
-//   gzexport json <packagePath> <outFile>
-//   gzexport bones <objectPath> <outFile>
-//   gzexport export <outDir> <gltf|psk> <packagePath>...
 using System.Text.RegularExpressions;
 using CUE4Parse.Compression;
 using CUE4Parse.FileProvider;
@@ -45,7 +40,6 @@ switch (args[0])
     }
     case "regrefs":
     {
-        // Who references packages whose name contains args[1], according to the cooked AssetRegistry.bin.
         if (!provider.TrySaveAsset("GZPro/AssetRegistry.bin", out var bytes)) throw new Exception("no AssetRegistry.bin");
         var reg = new CUE4Parse.UE4.AssetRegistry.FAssetRegistryState(new CUE4Parse.UE4.Readers.FByteArchive("AssetRegistry.bin", bytes, provider.Versions));
         string Id(CUE4Parse.UE4.AssetRegistry.Objects.FAssetIdentifier? i) => i is null ? "?" :
@@ -62,7 +56,6 @@ switch (args[0])
     }
     case "raw":
     {
-        // Save a non-package file (ini, json, AssetRegistry.bin...) from the archives.
         if (!provider.TrySaveAsset(args[1], out var bytes)) throw new Exception($"not found: {args[1]}");
         File.WriteAllBytes(args[2], bytes);
         Console.WriteLine($"wrote {args[2]} ({bytes.Length} bytes)");
@@ -98,7 +91,6 @@ switch (args[0])
     }
     case "meshinfo":
     {
-        // Raw LOD0 vertex bounds and component-space joint positions, in UE units.
         var mesh = provider.LoadPackageObject<USkeletalMesh>(args[1]);
         Console.WriteLine($"ImportedBounds origin={mesh.ImportedBounds.Origin} extent={mesh.ImportedBounds.BoxExtent}");
         if (mesh.TryConvert(out var dto))
@@ -125,7 +117,6 @@ switch (args[0])
     }
     case "anim":
     {
-        // Sample every frame of an animation into per-bone local transforms (skeleton bone order).
         var anim = provider.LoadPackageObject<UAnimSequence>(args[1]);
         var set = anim.ConvertAnims();
         var seq = set.Sequences[0];

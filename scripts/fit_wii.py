@@ -1,14 +1,3 @@
-"""Fit the Wii Final Wars Gigan onto the Remastered game's SKEL_GZ1_Gigan_Skeleton.
-
-Open gigan_fw_wii.blend, then:
-  1. align the Wii rig to the game rig (scale + facing) from matching joints
-  2. fold the Wii-only helper bones' weights into their parents
-  3. pose every Wii bone onto the matching game bone (tail: spread along the game tail by arc length)
-  4. bake that pose into the mesh, re-weight the tail onto the game's 17 tail bones
-  5. join into one mesh bound to a fresh copy of the game skeleton, with the game's two material slots
-
-Usage: blender -b gigan_fw_wii.blend --python fit_wii.py -- <bones.json> <out.blend>
-"""
 import sys, os, re
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -25,7 +14,6 @@ gframe = {b.name: b.matrix_local.copy() for b in game.data.bones}
 wii = bpy.data.objects["Gigan_FW_Armature"]
 wii_meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.parent == wii]
 
-# --- 1. align -------------------------------------------------------------------------------
 core = ["Bip01_Pelvis", "Bip01_Spine", "Bip01_Spine1", "Bip01_Neck", "Bip01_Neck1", "Bip01_Head",
         "Bip01_L_Clavicle", "Bip01_R_Clavicle", "Bip01_L_Thigh", "Bip01_R_Thigh", "Bip01_L_Calf", "Bip01_R_Calf",
         "Bip01_L_Foot", "Bip01_R_Foot"]
@@ -35,7 +23,7 @@ print(f"[fit] align scale={s:.4f}")
 bpy.ops.object.select_all(action="DESELECT")
 for o in [wii] + wii_meshes:
     o.select_set(True)
-for o in wii_meshes:  # keep children in place while the parent moves, then bake everything
+for o in wii_meshes:
     o.matrix_world = M @ o.matrix_world
 wii.matrix_world = M @ wii.matrix_world
 for o in wii_meshes:
@@ -44,9 +32,6 @@ for o in wii_meshes:
 bpy.context.view_layer.objects.active = wii
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
-# --- 2. fold helper bones into parents ------------------------------------------------------
-# Spreading the arm's rest-pose twist over the shoulder (SHOULDER_HALF_TWIST) rounded the shoulder but made the
-# upper arms look skinny in game, so it is off: the shoulder twist bone folds straight into the upper arm.
 SHOULDER_HALF_TWIST = False
 TWIST = {"L": "Bip01_L_Deltoid_Twist_1", "R": "Bip01_R_Deltoid_Twist_1"}
 FOLD = {
@@ -58,7 +43,6 @@ FOLD = {
     "Bip01_L_Hipfat_Mover": "Bip01_Pelvis", "Bip01_R_Hipfat_Mover": "Bip01_Pelvis",
     "Bip01_L_Toe1": "Bip01_L_Toe0", "Bip01_R_Toe1": "Bip01_R_Toe0",
 }
-
 
 def merge_group(ob, src, dst):
     g = ob.vertex_groups.get(src)
@@ -74,24 +58,19 @@ def merge_group(ob, src, dst):
     ob.vertex_groups.remove(g)
     return n
 
-
 if not SHOULDER_HALF_TWIST:
     FOLD.update({tw: f"Bip01_{side}_UpperArm" for side, tw in TWIST.items()})
 for ob in wii_meshes:
     for src, dst in FOLD.items():
         merge_group(ob, src, dst)
 
-# --- 3. pose onto the game rig --------------------------------------------------------------
 wii_tail = sorted([b.name for b in wii.data.bones if re.fullmatch(r"Bip01_Tail\d\d", b.name)])
 game_tail = ["Bip01_Tail"] + [f"Bip01_Tail{i}" for i in range(1, 17)]
 
-
 def chain_points(frames):
     pts = [f.translation.copy() for f in frames]
-    # extend past the last joint by the previous segment length so the tip has somewhere to go
     pts.append(pts[-1] + (pts[-1] - pts[-2]))
     return pts
-
 
 def arclen(pts):
     acc = [0.0]
@@ -99,9 +78,7 @@ def arclen(pts):
         acc.append(acc[-1] + (b - a).length)
     return acc
 
-
 def at(pts, acc, d):
-    """Point and segment index at arc length d along the polyline."""
     d = max(0.0, min(d, acc[-1]))
     for i in range(len(pts) - 1):
         if d <= acc[i + 1] or i == len(pts) - 2:
@@ -109,7 +86,6 @@ def at(pts, acc, d):
             t = 0.0 if seg == 0 else (d - acc[i]) / seg
             return pts[i].lerp(pts[i + 1], t), i, t
     return pts[-1], len(pts) - 2, 1.0
-
 
 ww = wii_world(wii)
 w_pts = chain_points([ww[n][1] for n in wii_tail])
@@ -126,7 +102,6 @@ for j, n in enumerate(wii_tail):
     p, seg, _ = at(g_pts, g_acc, d)
     p2, _, _ = at(g_pts, g_acc, w_acc[j + 1] / w_acc[-1] * g_acc[-1])
     f = gframe[game_tail[min(seg, len(game_tail) - 1)]].copy()
-    # aim the bone (Blender +Y) at the next sample so the Wii segment follows the curve
     cur = f.to_3x3() @ Vector((0, 1, 0))
     rot = cur.rotation_difference((p2 - p).normalized()).to_matrix()
     f3 = rot @ f.to_3x3()
@@ -134,9 +109,6 @@ for j, n in enumerate(wii_tail):
     f.translation = p
     target[n] = f
 
-# The game's rest pose has the arm ~90 deg twisted about its length relative to the Wii T-pose. Done in one step at
-# the shoulder seam that pinches into a square shoulder, so the Wii shoulder twist bone takes half of it (what it
-# was rigged for): its rotation is halfway between following the clavicle and following the upper arm.
 for side, tw in (TWIST.items() if SHOULDER_HALF_TWIST else ()):
     cl, ua = f"Bip01_{side}_Clavicle", f"Bip01_{side}_UpperArm"
     btw, bcl, bua = (wii.data.bones[n].matrix_local for n in (tw, cl, ua))
@@ -148,14 +120,11 @@ for side, tw in (TWIST.items() if SHOULDER_HALF_TWIST else ()):
 apply_pose(wii, target)
 bpy.context.view_layer.update()
 
-# --- 4. bake pose into the mesh, re-weight the tail ------------------------------------------
 for ob in wii_meshes:
     with bpy.context.temp_override(object=ob, active_object=ob, selected_objects=[ob]):
         bpy.ops.object.modifier_apply(modifier="Armature")
 
 tail_bones = game_tail
-# Shoulder twist bones: split their weight between clavicle and upper arm, so the game's arm twist is also
-# spread over the shoulder at runtime instead of pinching at one seam.
 for ob in (wii_meshes if SHOULDER_HALF_TWIST else ()):
     for side, tw in TWIST.items():
         g = ob.vertex_groups.get(tw)
@@ -170,23 +139,17 @@ for ob in (wii_meshes if SHOULDER_HALF_TWIST else ()):
                     ua.add([v.index], ge.weight * 0.5, "ADD")
         ob.vertex_groups.remove(g)
 
-# Tail weights are moved bone by bone along the tail's length, never by "closest game tail bone": the game tail
-# curls, so a nearest-point search sent some belly vertices to the tail tip and they swung with the tail.
 g_len = g_acc[-1]
-w_frac = [a / w_acc[-1] for a in w_acc]  # where each Wii tail joint sits along the tail, 0..1
-
+w_frac = [a / w_acc[-1] for a in w_acc]
 
 def game_seg_at(d):
-    """(game tail segment index, t within it) at arc length d along the game tail."""
     d = max(0.0, min(d, g_len))
     for i in range(len(g_pts) - 1):
         if d <= g_acc[i + 1] or i == len(g_pts) - 2:
             seg = g_acc[i + 1] - g_acc[i]
             return i, (0.0 if seg == 0 else (d - g_acc[i]) / seg)
 
-
 for ob in wii_meshes:
-    # Wii Tail10..13 share names with game tail bones: move the Wii groups out of the way first.
     for n in wii_tail:
         if n in ob.vertex_groups:
             ob.vertex_groups[n].name = "WII_" + n
@@ -216,8 +179,6 @@ for ob in wii_meshes:
     for gi in sorted(tgs, reverse=True):
         ob.vertex_groups.remove(ob.vertex_groups[gi])
 
-# --- 5. one mesh on the game skeleton -------------------------------------------------------
-# Remember which Wii part each face came from (part 4 = the single-sided wing membranes).
 for ob in wii_meshes:
     part = int(ob.name.rsplit("_", 1)[-1])
     attr = ob.data.attributes.new("wii_part", "INT", "FACE")
@@ -239,8 +200,6 @@ for n in unknown:
     parent = wii.data.bones[n].parent.name if n in wii.data.bones and wii.data.bones[n].parent else "Bip01_Pelvis"
     merge_group(body, n, parent)
 
-# Material slots: the game mesh has gigan_base + gigan_buzzsaw_static. Faces driven by the buzzsaw bone
-# go in the second slot, everything else in the first.
 tex = next(m for m in bpy.data.materials if m.name.startswith("Gigan_FW"))
 base = bpy.data.materials.new("gigan_base")
 saw = bpy.data.materials.new("gigan_buzzsaw_static")
@@ -263,7 +222,6 @@ for poly in body.data.polygons:
     saw_faces += on_saw
 print(f"[fit] buzzsaw faces: {saw_faces} / {len(body.data.polygons)}")
 
-# normalise weights, keep at most 4 influences (UE default)
 with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
     bpy.ops.object.vertex_group_limit_total(group_select_mode="ALL", limit=4)
     bpy.ops.object.vertex_group_normalize_all(group_select_mode="ALL", lock_active=False)

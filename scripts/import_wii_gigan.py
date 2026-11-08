@@ -1,7 +1,3 @@
-"""Import the Wii Godzilla Unleashed Gigan COLLADA rip into Blender 5.x (which has no DAE importer).
-
-Usage: blender -b --factory-startup --python import_wii_gigan.py -- <model.dae> <out.blend> [preview.png]
-"""
 import sys, os, math
 import xml.etree.ElementTree as ET
 import bpy
@@ -12,25 +8,20 @@ args = sys.argv[sys.argv.index("--") + 1:]
 dae_path, out_blend = args[0], args[1]
 preview = args[2] if len(args) > 2 else None
 tex_dir = os.path.dirname(dae_path)
-TEX = os.environ.get("GZ_TEX", "Gigan_FW_512_C.png")       # colour texture for every material
-ARM = os.environ.get("GZ_ARM", "Gigan_FW_Armature")        # armature object name
+TEX = os.environ.get("GZ_TEX", "Gigan_FW_512_C.png")
+ARM = os.environ.get("GZ_ARM", "Gigan_FW_Armature")
 
 root = ET.parse(dae_path).getroot()
 up = root.find(f"{NS}asset/{NS}up_axis")
-# Y-up files (e.g. the PS3 rip) get turned Z-up; the Wii rip has no up_axis and is already Z-up.
 UP = Matrix.Rotation(math.radians(90), 4, "X") if up is not None and up.text.strip() == "Y_UP" else Matrix.Identity(4)
-
 
 def floats(el):
     return [float(x) for x in el.text.split()]
 
-
 def mat16(vals):
     return Matrix([vals[0:4], vals[4:8], vals[8:12], vals[12:16]])
 
-
 def node_local(node):
-    """Local transform from a <matrix> or a translate/rotate/scale stack, in document order."""
     m = Matrix.Identity(4)
     for el in node:
         tag = el.tag.replace(NS, "")
@@ -45,11 +36,8 @@ def node_local(node):
             m = m @ Matrix.Diagonal((*floats(el), 1))
     return m
 
-
-# --- Joints (rest pose from scene nodes) ---
-joints = {}  # name -> (parent, world matrix)
+joints = {}
 order = []
-
 
 def walk(node, parent, parent_world):
     world = parent_world
@@ -63,12 +51,10 @@ def walk(node, parent, parent_world):
     for c in node.findall(NS + "node"):
         walk(c, parent, world)
 
-
 for vs in root.iter(NS + "visual_scene"):
     for n in vs.findall(NS + "node"):
         walk(n, None, UP)
 
-# --- Bind pose from inverse bind matrices (what the mesh was actually skinned against) ---
 bind_world = {}
 for skin in root.iter(NS + "skin"):
     srcs = {s.get("id"): s for s in skin.findall(NS + "source")}
@@ -89,11 +75,8 @@ for nm, bw in bind_world.items():
     max_diff = max(max_diff, max(abs(bw[r][c] - rw[r][c]) for r in range(4) for c in range(4)))
 print(f"[wii] {len(joints)} joints, {len(bind_world)} used for skinning; max rest-vs-bind diff = {max_diff:.5f}")
 
-# --- Clean scene ---
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
-# --- Armature ---
-# Max/Biped joints point down local +X; Blender bones point down local +Y.
 to_bone = Matrix.Rotation(math.radians(-90), 4, "Z")
 arm_data = bpy.data.armatures.new(ARM)
 arm = bpy.data.objects.new(ARM, arm_data)
@@ -115,7 +98,6 @@ for nm in order:
     w = joints[nm][1]
     arm_data.bones[nm]["dae_rest_world"] = [v for row in w for v in row]
 
-# --- Materials ---
 mats = {}
 for m in root.iter(NS + "material"):
     name = m.get("name")
@@ -131,7 +113,6 @@ for m in root.iter(NS + "material"):
         bsdf.inputs["Metallic"].default_value = 0.6
     mats[name] = mat
 
-# --- Meshes + skin weights ---
 controllers = {}
 for ctrl in root.iter(NS + "controller"):
     skin = ctrl.find(NS + "skin")
@@ -170,7 +151,7 @@ for geo in root.iter(NS + "geometry"):
     me = bpy.data.meshes.new(gname)
     me.from_pydata([tuple(v) for v in verts], [], faces)
     for mn in mat_names:
-        me.materials.append(mats.get(mn) or next(iter(mats.values())))  # PS3 triangles name a symbol, not the material
+        me.materials.append(mats.get(mn) or next(iter(mats.values())))
     for poly, mi in zip(me.polygons, face_mat):
         poly.material_index = mi
     if face_uv:
@@ -211,7 +192,6 @@ bpy.ops.wm.save_as_mainfile(filepath=out_blend)
 print("[wii] saved", out_blend)
 
 if preview:
-    # Quick turnaround render with the workbench engine.
     scn = bpy.context.scene
     objs = [o for o in scn.objects if o.type == "MESH"]
     pts = [o.matrix_world @ Vector(c) for o in objs for c in o.bound_box]

@@ -1,7 +1,3 @@
-"""Load the Wii FW Gigan .blend, import the Remastered SK_GZPro_Gigan .glb next to it, report
-sizes / rest poses and render a side-by-side.
-Usage: blender -b gigan_fw_wii.blend --python compare.py -- <SK_GZPro_Gigan.glb> <out.png> <report.txt>
-"""
 import sys, math, bpy
 from mathutils import Vector
 
@@ -14,13 +10,11 @@ game_objs = [o for o in bpy.data.objects if o not in before]
 game_arm = next(o for o in game_objs if o.type == "ARMATURE")
 wii_arm = bpy.data.objects["Gigan_FW_Armature"]
 
-
 def bounds(objs):
     pts = [o.matrix_world @ Vector(c) for o in objs if o.type == "MESH" for c in o.bound_box]
     lo = Vector([min(p[i] for p in pts) for i in range(3)])
     hi = Vector([max(p[i] for p in pts) for i in range(3)])
     return lo, hi
-
 
 wii_objs = [o for o in bpy.data.objects if o.parent == wii_arm]
 for label, objs in (("wii", wii_objs), ("game", game_objs)):
@@ -31,7 +25,6 @@ for o in game_objs:
     if o.type == "MESH":
         lines.append(f"game mesh {o.name}: {len(o.data.vertices)} verts, mats={[m.name for m in o.data.materials]}")
 
-# Compare world-space joint positions for bones both rigs share.
 def wpos(arm, name):
     b = arm.data.bones.get(name)
     return None if b is None else arm.matrix_world @ b.head_local
@@ -48,7 +41,6 @@ for name in ("Bip01", "Bip01_Pelvis", "Bip01_Spine1", "Bip01_Head", "Bip01_L_Upp
 open(report, "w").write("\n".join(lines))
 print("\n".join(lines))
 
-# Side-by-side render: scale Wii to game height and place it to the right.
 wii_arm.scale = (scale, scale, scale)
 bpy.context.view_layer.update()
 lo_w, hi_w = bounds(wii_objs)

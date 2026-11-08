@@ -1,6 +1,5 @@
 param([string]$ModDir, [ValidateSet("gigan", "godzilla2k", "heisei")] [string]$Target = "gigan", [string]$ModName = "")
-# Reads the packaged mod back with gzexport and compares it with the game's own mesh (bones, slots, size).
-$ErrorActionPreference = "Continue"  # gzexport logs to stderr; don't treat that as failure
+$ErrorActionPreference = "Continue"
 $P = "C:\Users\halst\OneDrive\Desktop\Projects\gigan-fw-mod"
 $X = "C:\Users\halst\GiganModTools\gzexport\gzexport.exe"
 $Game = "C:\Program Files (x86)\Steam\steamapps\common\Godzilla Destroy All Monsters Melee Remastered\GZPro\Content\Paks"
@@ -23,7 +22,6 @@ if ($Target -eq "godzilla2k") {
 $work = Join-Path $P "work\verify"
 New-Item -ItemType Directory -Force $work | Out-Null
 
-# mod only (+ game's global container so script imports resolve)
 $solo = Join-Path $work "solo"
 Remove-Item -Recurse -Force $solo -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $solo | Out-Null

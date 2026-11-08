@@ -1,20 +1,3 @@
-"""Fit the MMD Godzilla 2004 (Final Wars) model onto a Remastered Godzilla skeleton: Godzilla 2000 or
-the regular (Heisei) Godzilla, which share the Bip01 rig (Heisei has no Bip_Belly / Bip_Face, which this doesn't use).
-
-Same approach as fit_ps3.py: map MMD bones (by their English names) to game bones, align with a similarity transform,
-move each mapped joint onto its game joint (swing only; limbs also stretched to the game's lengths), bake with linear
-blend skinning, then re-weight onto the game bones. Unmapped MMD bones (spines, eyes, fingers...) move with their nearest
-mapped parent and are weighted to that parent's game bone, unless WEIGHT_TO names a game bone for them.
-
-Materials go to the game's two slots: body + eyes -> slot 0 (eyes packed into the right half of a 2:1 body sheet),
-claws/teeth/tongue/spines -> slot 1. The see-through eye overlays (eyes2, eyefire) are removed.
-Also writes the spine-plate UV mask used for the attack glow textures.
-
-Output object names match the Gigan fits (GZ1_Gigan / SK_GZPro_Gigan_FW) so export_fbx.py works unchanged.
-Usage: blender -b g2004.blend --python fit_g2004.py -- <bones.json> <out.blend> <plates_mask.png> [body_slot spines_slot [own-upper]]
-  slot names default to Godzilla 2000's; the regular (Heisei) Godzilla uses body_mat spines_mat.
-  own-upper: move the upper-body bones onto the model's joints instead (needs the shipped skeleton, see ue_import.py).
-"""
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy, bmesh
@@ -31,14 +14,12 @@ game = build_armature("GZ1_Gigan", gw, gorder, 0.01)
 G = {b.name: b.head_local.copy() for b in game.data.bones}
 mmd = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 body = next(o for o in bpy.data.objects if o.type == "MESH")
-EN = {b.name: (b.get("mmd_name_en") or b.name) for b in mmd.data.bones}  # bone name -> English name
+EN = {b.name: (b.get("mmd_name_en") or b.name) for b in mmd.data.bones}
 BY_EN = {v: k for k, v in EN.items()}
 J = {EN[b.name]: b.head_local.copy() for b in mmd.data.bones}
 PARENT = {EN[b.name]: (EN[b.parent.name] if b.parent else None) for b in mmd.data.bones}
 
-
 def side_map(flip):
-    """MMD side suffix -> game side; flip swaps L/R (MMD 'left' is the model's left)."""
     a, b = ("L", "R") if not flip else ("R", "L")
     m = {"lowerbody": "Bip01_Pelvis", "upperbody": "Bip01_Spine", "upperbody2": "Bip01_Spine1",
          "neck": "Bip01_Neck1", "head": "Bip01_Head"}
@@ -47,7 +28,6 @@ def side_map(flip):
                   f"elbow_{s}": f"Bip01_{g}_Forearm", f"wrist_{s}": f"Bip01_{g}_Hand",
                   f"leg_{s}": f"Bip01_{g}_Thigh", f"knee_{s}": f"Bip01_{g}_Calf", f"ankle_{s}": f"Bip01_{g}_Foot"})
     return m
-
 
 core = ["lowerbody", "upperbody", "upperbody2", "neck", "head", "leg_L", "leg_R", "knee_L", "knee_R", "ankle_L", "ankle_R",
         "shoulder_L", "shoulder_R"]
@@ -66,7 +46,6 @@ for k in ("lowerbody", "upperbody", "upperbody2", "neck", "head", "shoulder_L", 
     d = G[MAP[k]] - A[k]
     print(f"[g04]   {k:<11} -> {MAP[k]:<18} game minus 2004: x {d.x:6.1f}  fwd(-y) {-d.y:6.1f}  up {d.z:6.1f}")
 
-# weights-only targets: these move with their parent but are animated by their own game bone
 gs = "R" if flip else "L"
 go = "L" if flip else "R"
 WEIGHT_TO = {"jaw": "Bip01_Jaw", "lips2": "Bip01_Jaw", "tongue": "Bip01_Jaw", "tongue2": "Bip01_Jaw", "tongue3": "Bip01_Jaw",
@@ -79,21 +58,14 @@ for s, g in (("L", gs), ("R", go)):
                       f"toes_{s}": f"Bip01_{g}_Toe0", f"toe_{s}": f"Bip01_{g}_Toe01", f"toe_{s}2": f"Bip01_{g}_Toe01",
                       f"toe_{s}3": f"Bip01_{g}_Toe01"})
 
-# own-upper: game bones move onto the 2004 model's own joints instead of the model being bent onto the game's
-# (rotations stay the game's, so animation rotations mean the same thing). The shipped skeleton takes these bones'
-# positions from the mesh (Skeleton translation retargeting, set in ue_import.py), so the game's longer neck, lower
-# shoulders, higher hips and longer arms no longer stretch the model. Pelvis, feet and tail stay on the game's joints.
-NO_MOVE = set()  # MMD joints whose mesh stays where it is (its game bone is only a pivot for the weights)
+NO_MOVE = set()
 if OWN_UPPER:
     d1 = (G["Bip01_Neck"] - G["Bip01_Spine1"]).length
     d2 = (G["Bip01_Neck1"] - G["Bip01_Neck"]).length
-    f = d1 / (d1 + d2)  # the game's Neck bone (where the clavicles hang) has no MMD joint: same fraction of the way
+    f = d1 / (d1 + d2)
     nk = A["upperbody2"].lerp(A["neck"], f)
-    # spine, neck, head, shoulders and hips: exactly at the model's joints, so the torso keeps its own posture
     exact = {"Bip01_Spine": A["upperbody"], "Bip01_Spine1": A["upperbody2"], "Bip01_Neck": nk,
              "Bip01_Neck1": A["neck"], "Bip01_Head": A["head"], "Bip01_Jaw": A["jaw"]}
-    # arms below the shoulder: the game's direction from the parent with the model's length. The MMD rest pose holds
-    # its arms raised; at its own elbow/wrist positions every animation would lift the arms by that much.
     seg = {}
     for s, g in (("L", gs), ("R", go)):
         exact.update({f"Bip01_{g}_Clavicle": A[f"shoulder_{s}"], f"Bip01_{g}_UpperArm": A[f"arm_{s}"],
@@ -104,17 +76,16 @@ if OWN_UPPER:
                     f"Bip01_{g}_Finger01": (A[f"thumb_{s}1"], A[f"thumb_{s}2"]),
                     f"Bip01_{g}_Finger1": (A[f"wrist_{s}"], A[f"middle_{s}1"]),
                     f"Bip01_{g}_Finger11": (A[f"middle_{s}1"], A[f"middle_{s}2"])})
-    # the thighs hang from the model's own hips; the knees (Calf) stay on the game's knees so the feet still land
     G0 = {k: v.copy() for k, v in G.items()}
     newpos = {}
-    for name in gorder:  # parents before children
+    for name in gorder:
         p = gw[name][0]
         if name in exact:
             newpos[name] = exact[name].copy()
         elif name in seg:
             a, b = seg[name]
             newpos[name] = newpos.get(p, G0[p]) + (G0[name] - G0[p]).normalized() * (b - a).length
-    NO_MOVE = {"lowerbody"}  # the pelvis bone stays on the game's (animated) pivot; the hips around it don't move
+    NO_MOVE = {"lowerbody"}
     bpy.context.view_layer.objects.active = game
     bpy.ops.object.mode_set(mode="EDIT")
     for name, p in newpos.items():
@@ -136,12 +107,10 @@ STRETCH = {f"{j}_{s}" for j in ("arm", "elbow", "leg", "knee") for s in "LR"}
 MMD_TAIL = [f"tail{i}" if i > 1 else "tail" for i in range(1, 23)]
 GAME_TAIL = ["Bip01_Tail"] + [f"Bip01_Tail{i}" for i in range(1, 15)]
 
-
 def stretch(axis, k):
     a = axis.normalized()
     return (Matrix.Identity(3) + (k - 1) * Matrix([[a.x * a.x, a.x * a.y, a.x * a.z], [a.y * a.x, a.y * a.y, a.y * a.z],
                                                      [a.z * a.x, a.z * a.y, a.z * a.z]])).to_4x4()
-
 
 order = [EN[b.name] for b in mmd.data.bones]
 Mj, Rj = {}, {}
@@ -166,7 +135,6 @@ for j in order:
             p = PARENT[p]
         Rj[j], Mj[j] = (Rj[p], Mj[p]) if p else (Matrix.Identity(4), Malign)
 
-# tail: spread the 22 MMD tail joints along the 15-bone game tail by arc length
 def arclen(pts):
     acc = [0.0]
     for a, b in zip(pts, pts[1:]):
@@ -194,7 +162,7 @@ for i, j in enumerate(MMD_TAIL):
     Mj[j] = Matrix.Translation(q0) @ R @ stretch(d0, (q1 - q0).length / d0.length) @ Matrix.Translation(-p_pts[i]) @ Malign
     Rj[j] = R
     tail_seg[j] = (q0, q1, p_acc[i] / p_acc[-1], p_acc[i + 1] / p_acc[-1])
-for j in order:  # anything hanging off the tail (tail spines) follows its tail bone
+for j in order:
     if j not in Mj:
         p = PARENT[j]
         while p not in Mj:
@@ -202,7 +170,6 @@ for j in order:  # anything hanging off the tail (tail spines) follows its tail 
         Mj[j], Rj[j] = Mj[p], Rj[p]
 print(f"[g04] tail length mmd={p_acc[-1]:.1f} game={g_acc[-1]:.1f}")
 
-# --- materials: drop see-through overlays, sort into the two game slots, pack eyes into the body sheet ----------
 me = body.data
 mat_names = [m.name for m in me.materials]
 DROP = {"eyes2", "eyefire"}
@@ -212,8 +179,6 @@ PLATES = {"spines", "spines2"}
 bm = bmesh.new()
 bm.from_mesh(me)
 bmesh.ops.delete(bm, geom=[f for f in bm.faces if mat_names[f.material_index] in DROP], context="FACES")
-# the MMD plates are split into pieces along seams (duplicate vertices at the same spot); welded, they can't be
-# pulled apart by slightly different skin weights, which opened see-through slits in game
 plate_v = list({v for f in bm.faces if mat_names[f.material_index] in {"spines", "spines2"} for v in f.verts})
 n0 = len(bm.verts)
 bmesh.ops.remove_doubles(bm, verts=plate_v, dist=0.001)
@@ -232,7 +197,6 @@ for poly in me.polygons:
     if name in PLATES:
         plate_tris.append([tuple(uv[li].uv) for li in poly.loop_indices])
 print(f"[g04] removed overlay faces; {len(plate_tris)} spine-plate faces for the glow mask")
-# mark the dorsal-plate vertices so rigid_plates.py can pin each plate to the skin under it
 is_plate = [False] * len(me.vertices)
 for poly in me.polygons:
     if mat_names[poly.material_index] in PLATES:
@@ -240,7 +204,6 @@ for poly in me.polygons:
             is_plate[vi] = True
 me.attributes.new("is_plate", "BOOLEAN", "POINT").data.foreach_set("value", is_plate)
 
-# plate mask (1024, rows top-down like a PNG) by filling each plate face's UV triangle(s)
 SIZE = 1024
 mask = np.zeros((SIZE, SIZE), dtype=np.float32)
 for tri in plate_tris:
@@ -261,14 +224,13 @@ for tri in plate_tris:
 img = bpy.data.images.new("plates", SIZE, SIZE, alpha=False)
 img.colorspace_settings.name = "Non-Color"
 rgba = np.ones((SIZE, SIZE, 4), dtype=np.float32)
-rgba[..., :3] = np.flipud(mask)[..., None]  # Blender pixel rows run bottom-up
+rgba[..., :3] = np.flipud(mask)[..., None]
 img.pixels = rgba.ravel()
 img.filepath_raw = mask_png
 img.file_format = "PNG"
 img.save()
 print(f"[g04] plate mask covers {mask.mean() * 100:.1f}% of the spines sheet -> {mask_png}")
 
-# --- bake the move (linear blend skinning) ----------------------------------------------------------------------
 n = len(me.vertices)
 co = np.empty(n * 3)
 me.vertices.foreach_get("co", co)
@@ -293,22 +255,19 @@ me.normals_split_custom_set([Vector(np.linalg.inv(lin[l.vertex_index]).T @ np.ar
                              for i, l in enumerate(me.loops)])
 me.update()
 
-# --- re-weight onto game bones ----------------------------------------------------------------------------------
 def game_bone(j):
     if j in WEIGHT_TO:
         return WEIGHT_TO[j]
     while j is not None and j not in MAP:
         if j in tail_seg:
-            return None  # handled by the tail mapping
+            return None
         j = PARENT[j]
     return MAP.get(j, "Bip01_Pelvis") if j else "Bip01_Pelvis"
-
 
 def tail_owner(j):
     while j not in tail_seg:
         j = PARENT[j]
     return j
-
 
 def tail_split(co_, j):
     q0, q1, f0, f1 = tail_seg[j]
@@ -326,7 +285,6 @@ def tail_split(co_, j):
                 return [(GAME_TAIL[k], 1.5 - u), (GAME_TAIL[k + 1], u - 0.5)]
             return [(GAME_TAIL[k], 1.0)]
 
-
 neck_z, spine1_z = G["Bip01_Neck"].z, G["Bip01_Spine1"].z
 per_vert = []
 for v in me.vertices:
@@ -340,11 +298,8 @@ for v in me.vertices:
             for name, f in tail_split(v.co, tail_owner(j)):
                 acc[name] = acc.get(name, 0) + g.weight * f
             continue
-        if gb == "Bip01_Spine1":  # upper chest: blend toward the game's Neck bone (where the arms hang) by height
+        if gb == "Bip01_Spine1":
             if OWN_UPPER:
-                # like the game mesh: the upper back stays mostly on Spine1 up to the shoulders and only ~60% Neck
-                # at the base of the neck. Going fully to Neck at the Neck joint swung the whole upper back with
-                # every head/neck motion and raised a hunch behind the shoulders.
                 t = max(0.0, min(1.0, (v.co.z - spine1_z) / ((G["Bip01_Neck1"].z - spine1_z) * 1.6)))
             else:
                 t = max(0.0, min(1.0, (v.co.z - spine1_z) / (neck_z - spine1_z)))
@@ -363,7 +318,6 @@ for vi, acc in enumerate(per_vert):
         groups[name].add([vi], w, "REPLACE")
 body.modifiers.clear()
 
-# --- two game slots, smooth shading, final objects --------------------------------------------------------------
 base = bpy.data.materials.new(BODY_SLOT)
 spines = bpy.data.materials.new(SPINES_SLOT)
 slot_of = [1 if name in SPINES else 0 for name in mat_names]

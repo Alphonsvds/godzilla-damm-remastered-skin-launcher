@@ -1,16 +1,3 @@
-"""Export the fitted Final Wars Gigan as an FBX that matches the game's SK_GZPro_Gigan layout.
-
-Game layout (UE component space): root bone GiganRoot = 180 deg about Z, scale 100; every other bone's local
-translation is in "root units" (Bip01 at 47.64); mesh vertices ~11343 tall. Our working blend is that space / 100
-with Y flipped, so:
-  - the armature OBJECT becomes GiganRoot (rotation 180 Z, scale 100); UE turns a non-"Armature" armature node
-    into the root bone,
-  - bones and mesh live inside it in working units, rotated back by the root's 180 deg,
-  - scene unit = 1 cm so FBX units come out as UE centimetres.
-
-Usage: blender -b gigan_fw_fitted.blend --python export_fbx.py -- <out.fbx> [primary_axis] [secondary_axis] [mesh_name]
-The root keeps the source skeleton's root bone name (GiganRoot, Godzilla2KRoot...); mesh_name defaults to SK_GZPro_Gigan.
-"""
 import sys, math
 import bpy
 from mathutils import Matrix
@@ -27,7 +14,6 @@ ROOT = next(b.name for b in src_arm.data.bones if b.parent is None)
 R = Matrix.Rotation(math.radians(180), 4, "Z")
 Rinv = R.inverted()
 
-# New armature object named after the root bone, bones = source bones minus the root bone, rotated by R^-1.
 data = bpy.data.armatures.new(ROOT)
 root = bpy.data.objects.new(ROOT, data)
 bpy.context.scene.collection.objects.link(root)
@@ -45,13 +31,10 @@ for b in src_arm.data.bones:
 bpy.ops.object.mode_set(mode="OBJECT")
 root.matrix_world = R @ Matrix.Diagonal((100, 100, 100, 1))
 
-# Mesh: bake R^-1 into the vertices and hang it under the root with no extra transform.
 body.modifiers.clear()
 body.parent = None
 body.matrix_world = Matrix.Identity(4)
 body.data.transform(Rinv)
-# Faces built by from_pydata are flagged flat (sharp_face); Unreal then splits every corner into its own vertex.
-# Shading comes from the custom normals anyway, so mark everything smooth.
 body.data.shade_smooth()
 body.name = mesh_name
 body.data.name = mesh_name
@@ -64,7 +47,7 @@ bpy.data.objects.remove(src_arm)
 
 scn = bpy.context.scene
 scn.unit_settings.system = "METRIC"
-scn.unit_settings.scale_length = 0.01  # 1 Blender unit = 1 cm
+scn.unit_settings.scale_length = 0.01
 
 bpy.ops.object.select_all(action="DESELECT")
 root.select_set(True)

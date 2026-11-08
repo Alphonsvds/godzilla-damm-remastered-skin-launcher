@@ -1,25 +1,16 @@
-"""Pin each dorsal plate to the skin under it. Without this the plates keep their MMD parent's single bone while the
-back under them follows blended torso/tail weights, so in motion the plates slide off the back and float.
-A plate's buried base takes the weights of the skin right around it (so it stays sealed in a bending back); further
-out it fades to one rigid set of weights from the skin at its root, so the blade itself doesn't bend.
-
-Plate vertices are the ones fit_g2004.py marked with the "is_plate" attribute.
-Usage: blender -b in.blend --python rigid_plates.py -- <out.blend> [plate_scale]
-"""
 import sys
 import bpy
 from mathutils.kdtree import KDTree
 
 args = sys.argv[sys.argv.index("--") + 1:]
 out_blend = args[0]
-PLATE_SCALE = float(args[1]) if len(args) > 1 else 1.0  # grow each plate about its root (taller, still sealed in)
-BASE_NEAR, BASE_FAR = 1.0, 4.0  # plate vertices within BASE_NEAR of the skin follow it; rigid beyond BASE_FAR
+PLATE_SCALE = float(args[1]) if len(args) > 1 else 1.0
+BASE_NEAR, BASE_FAR = 1.0, 4.0
 body = bpy.data.objects["SK_GZPro_Gigan_FW"]
 me = body.data
 plate = [False] * len(me.vertices)
 me.attributes["is_plate"].data.foreach_get("value", plate)
 
-# skin = vertices used only by body-slot faces (not plates, claws, teeth)
 in_slot1 = [False] * len(me.vertices)
 for p in me.polygons:
     if p.material_index == 1:
@@ -31,7 +22,6 @@ for i in skin:
     kd.insert(me.vertices[i].co, i)
 kd.balance()
 
-# plates as connected islands of plate vertices
 adj = {}
 for e in me.edges:
     a, b = e.vertices
@@ -55,16 +45,13 @@ for v in range(len(me.vertices)):
 names = {g.index: g.name for g in body.vertex_groups}
 groups = {g.name: g for g in body.vertex_groups}
 
-
 def weights(vi):
     return {names[g.group]: g.weight for g in me.vertices[vi].groups if g.weight > 0}
 
-
 moved = 0
 for isl in islands:
-    # the plate's root: the plate vertex closest to the skin; average the weights of the skin around that spot
     root, (co, si, dist) = min(((v, kd.find(me.vertices[v].co)) for v in isl), key=lambda t: t[1][2])
-    if PLATE_SCALE != 1.0:  # grow about the skin point under the root, so the base stays in the skin
+    if PLATE_SCALE != 1.0:
         c = co.copy()
         for v in isl:
             me.vertices[v].co = c + (me.vertices[v].co - c) * PLATE_SCALE
@@ -75,8 +62,6 @@ for isl in islands:
     tot = sum(acc.values())
     root_w = {n: w / tot for n, w in acc.items()}
     for v in isl:
-        # the buried base follows the skin around it exactly (so it can't poke out of or sink under a bending back);
-        # further out the plate goes rigid with its root
         co_v = me.vertices[v].co
         near = kd.find_n(co_v, 4)
         d = near[0][2]

@@ -1,8 +1,3 @@
-"""Stand the 2004 (MMD) Godzilla next to the game's Godzilla 2000 and Heisei Godzilla at the same height, measure
-proportions, and render front + side.
-Usage: blender -b g2004.blend --python godzilla_compare.py -- <game_dir> <out_prefix>
-  game_dir holds bones_SK_GZPro_Godzilla2k.json, bones_SK_GZPro_HeiseiGodzilla.json and export/... glbs
-"""
 import sys, os, math
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -13,14 +8,12 @@ game_dir, out_prefix = sys.argv[sys.argv.index("--") + 1:]
 mmd_arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 mmd_mesh = next(o for o in bpy.data.objects if o.type == "MESH")
 
-# MMD bone (by English name) -> game bone
 MAP = {"lowerbody": "Bip01_Pelvis", "upperbody": "Bip01_Spine", "upperbody2": "Bip01_Spine1", "neck": "Bip01_Neck",
        "neck2": "Bip01_Neck1", "head": "Bip01_Head", "jaw": "Bip01_Jaw",
        "shoulder_L": "Bip01_L_Clavicle", "arm_L": "Bip01_L_UpperArm", "elbow_L": "Bip01_L_Forearm", "wrist_L": "Bip01_L_Hand",
        "leg_L": "Bip01_L_Thigh", "knee_L": "Bip01_L_Calf", "ankle_L": "Bip01_L_Foot", "toes_L": "Bip01_L_Toe0",
        "tail": "Bip01_Tail"}
 mmd = {b.get("mmd_name_en", b.name): b.head_local.copy() for b in mmd_arm.data.bones}
-
 
 def measures(J):
     h = J["head"].z
@@ -37,7 +30,6 @@ def measures(J):
         "neck lean (deg from vertical)": math.degrees((J["head"] - J["neck"]).angle(Vector((0, 0, 1)))),
         "torso lean (deg from vertical)": math.degrees((J["neck"] - J["hip"]).angle(Vector((0, 0, 1)))),
     }
-
 
 rows = {"2004 (MMD)": measures({"head": mmd["head"], "hip": mmd["lowerbody"], "shoulder": mmd["shoulder_L"],
                                  "neck": mmd["neck"], "arm": mmd["arm_L"], "elbow": mmd["elbow_L"], "wrist": mmd["wrist_L"],
@@ -71,7 +63,6 @@ print("[cmp] " + f"{'':32s}" + "".join(f"{n:>16s}" for n in names))
 for k in rows[names[0]]:
     print("[cmp] " + f"{k:32s}" + "".join(f"{rows[n][k]:16.2f}" for n in names))
 
-# --- line them up: same head height, feet on the floor, facing the same way, side by side ---------
 game_head = models[1][1].data.bones["Bip01_Head"].head_local.z
 s = game_head / mmd["head"].z
 mmd_arm.matrix_world = Matrix.Scale(s, 4)
@@ -101,13 +92,12 @@ cd.ortho_scale = 420
 cam = bpy.data.objects.new("cam", cd)
 scn.collection.objects.link(cam)
 scn.camera = cam
-front = -1 if tail_dir["Godzilla 2000"] > 0 else 1  # +Y or -Y is his front
+front = -1 if tail_dir["Godzilla 2000"] > 0 else 1
 cam.location = (130, front * 900, 60)
 cam.rotation_euler = (math.radians(90), 0, 0 if front < 0 else math.pi)
 scn.render.filepath = f"{out_prefix}_front.png"
 bpy.ops.render.render(write_still=True)
 print("[cmp] rendered", scn.render.filepath)
-# side views one model at a time (they overlap from the side)
 scn.render.resolution_x, scn.render.resolution_y = 900, 700
 cd.ortho_scale = 330
 meshes = [(label, mmd_mesh if label == "2004" else mesh) for label, arm, mesh in models]

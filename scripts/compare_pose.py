@@ -1,6 +1,3 @@
-"""Render the fitted FW Gigan and the game's own Gigan in the same animation frame, front + side.
-Usage: blender -b gigan_fw_fitted.blend --python compare_pose.py -- <bones.json> <game.glb> <anim.json> <frame> <out_prefix>
-"""
 import sys, os, json, math
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -13,7 +10,6 @@ gw, order = game_world(bones_json)
 parents = {n: gw[n][0] for n in order}
 fw_arm = bpy.data.objects["GZ1_Gigan"]
 
-# game mesh on its own copy of the skeleton, shifted to the side
 game_arm = build_armature("GameRig", gw, order, 0.01)
 bpy.ops.import_scene.gltf(filepath=glb)
 mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.name.startswith("SK_GZPro_Gigan") and o.name != "SK_GZPro_Gigan_FW")
@@ -33,7 +29,7 @@ mesh.modifiers.new("Armature", "ARMATURE").object = game_arm
 anim = json.load(open(anim_json, encoding="utf-8-sig"))
 pose = anim_frame_world(anim, frame, parents, 0.01)
 root = pose["GiganRoot"].translation.copy()
-for k in pose:  # strip root motion
+for k in pose:
     pose[k] = Matrix.Translation(-Vector((root.x, root.y, 0))) @ pose[k]
 apply_pose(fw_arm, pose)
 apply_pose(game_arm, pose)

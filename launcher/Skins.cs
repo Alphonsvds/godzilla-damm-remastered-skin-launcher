@@ -4,9 +4,6 @@ using System.Text.RegularExpressions;
 
 namespace GiganSkinLauncher;
 
-/// <summary>A monster with its own skins: a folder under skins\ holding monster.json, card.png, original.png (the
-/// game's own look) and one sub-folder per skin. Each monster keeps its own install record in ~mods, so skins for
-/// different monsters can be active at the same time.</summary>
 public sealed record Monster(string Id, string Name, string OriginalName, string Manifest, string? Card, List<Skin> Skins)
 {
     public static List<Monster> Load(string skinsDir)
@@ -28,13 +25,9 @@ public sealed record Monster(string Id, string Name, string OriginalName, string
         return list.OrderBy(m => m.Name).ToList();
     }
 
-    /// <summary>The monster as a card on the home screen.</summary>
     public Skin AsCard => new(Id, Name, "", null, Card);
 }
 
-/// <summary>A selectable skin: a folder holding skin.json, preview.png and the mod's pak/utoc/ucas files.
-/// The built-in "original" skin is the game's own look: no folder, installs nothing; its card art is original.png.
-/// A skin folder with no mod files yet shows as "coming soon".</summary>
 public sealed record Skin(string Id, string Name, string Description, string? Folder, string? Preview)
 {
     public const string OriginalId = "original";
@@ -64,22 +57,17 @@ public sealed record Skin(string Id, string Name, string Description, string? Fo
     }
 }
 
-/// <summary>Finds the game and swaps skin files in and out of its Paks\~mods folder.
-/// Only files this launcher installed (listed in its manifest) are ever removed.</summary>
 public sealed class GameInstall
 {
     public const string SteamAppId = "4251460";
     const string GameFolder = "Godzilla Destroy All Monsters Melee Remastered";
 
     public string Root { get; }
-    /// <summary>True when found through Steam (launch via Steam); false when the user picked the folder.</summary>
     public bool ViaSteam { get; }
     public string ModsDir => Path.Combine(Root, "GZPro", "Content", "Paks", "~mods");
 
-    // a folder the user picked is remembered here so they only browse once
     static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Godzilla DAMMR Skin Launcher", "game-folder.txt");
-    // where versions up to v0.3 (named Gigan Skin Launcher) remembered it; still read so nobody has to browse again
     static readonly string OldSettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Gigan Skin Launcher", "game-folder.txt");
 
@@ -103,8 +91,6 @@ public sealed class GameInstall
         return null;
     }
 
-    /// <summary>The game install containing <paramref name="picked"/>: accepts the game's main folder or any folder
-    /// inside it (GZPro, Content, Paks...). Recognised by GZPro\Content\Paks holding the game's .utoc files.</summary>
     public static GameInstall? FromFolder(string picked)
     {
         for (var dir = new DirectoryInfo(picked); dir is not null; dir = dir.Parent)
@@ -138,7 +124,6 @@ public sealed class GameInstall
         Process.GetProcesses().Any(p => p.ProcessName.StartsWith("GZPro", StringComparison.OrdinalIgnoreCase) &&
                                         p.ProcessName.Contains("Shipping", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>The skin installed for a monster, from that monster's install record (<paramref name="manifest"/>).</summary>
     public string ActiveSkinId(string manifest)
     {
         var manifestPath = Path.Combine(ModsDir, manifest);
@@ -174,8 +159,6 @@ public sealed class GameInstall
             File.WriteAllText(manifestPath, JsonSerializer.Serialize(new { skin = skin.Id, files = installed }));
     }
 
-    /// <summary>Starts the game: through Steam when found there, otherwise the game's own executable.
-    /// Returns false if no executable could be found (the skin is still applied).</summary>
     public bool Launch()
     {
         if (ViaSteam)

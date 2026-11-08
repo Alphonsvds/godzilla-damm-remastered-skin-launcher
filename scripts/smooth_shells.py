@@ -1,8 +1,3 @@
-"""Spatial weight smoothing: every vertex in the zone takes the distance-weighted average skin weights of all
-vertices within RADIUS, whichever piece of mesh they belong to. The MMD model is built from many overlapping shells
-(thigh pieces tucked under the belly, etc.); edge-based smoothing can't make them agree, so they slide apart and
-inner pieces poke through when the legs move. Zone = vertices that use any of the given bones.
-Usage: blender -b in.blend --python smooth_shells.py -- <out.blend> <radius> <iterations> <bone,bone,...>"""
 import sys, bpy
 import numpy as np
 from mathutils import kdtree

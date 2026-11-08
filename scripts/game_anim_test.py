@@ -1,7 +1,3 @@
-"""Sanity check: rebuild the game skeleton from the bone dump, bind the game's own mesh to it and play a
-game animation. If this looks right, the bone/animation conversion is right.
-Usage: blender -b --python game_anim_test.py -- <bones.json> <mesh.glb> <anim.json> <out_prefix> <frames,comma,list>
-"""
 import sys, os, json, math
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -9,7 +5,7 @@ from mathutils import Vector, Matrix
 from gzrig import game_world, build_armature, anim_frame_world, apply_pose
 
 bones_json, glb, anim_json, out_prefix, frames = sys.argv[sys.argv.index("--") + 1:]
-UNIT = 0.01  # glb mesh is in metres (UE cm / 100)
+UNIT = 0.01
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 gw, order = game_world(bones_json)
@@ -24,10 +20,9 @@ for o in list(bpy.data.objects):
         bpy.data.objects.remove(o)
 mw = mesh.matrix_world.copy()
 mesh.parent = None
-mesh.data.transform(Matrix.Scale(100, 4) @ mw)  # raw verts are /100; the root bone's x100 scale restores them
+mesh.data.transform(Matrix.Scale(100, 4) @ mw)
 mesh.matrix_world = Matrix.Identity(4)
 
-# Make sure the glb mesh sits on our joints (axis signs can differ between glTF and our UE->Blender flip).
 def centroid(group):
     gi = mesh.vertex_groups[group].index
     pts = [v.co for v in mesh.data.vertices if any(g.group == gi and g.weight > 0.2 for g in v.groups)]
@@ -64,7 +59,6 @@ scn.camera = cam
 a = math.radians(-35)
 cam.location = (math.sin(a) * 600, -math.cos(a) * 600 + 20, 60)
 cam.rotation_euler = (math.radians(90), 0, a)
-# figure out facing: put the camera on the side the head points to
 head = arm.data.bones["Bip01_Head"].head_local
 if head.y > 0:
     cam.location.y = -cam.location.y + 40
@@ -77,4 +71,3 @@ for f in [int(x) for x in frames.split(",")]:
     scn.render.filepath = f"{out_prefix}_{f:03d}.png"
     bpy.ops.render.render(write_still=True)
     print("[test] rendered", scn.render.filepath)
-

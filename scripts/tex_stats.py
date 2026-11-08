@@ -1,4 +1,3 @@
-"""Per-channel stats of PNGs. Usage: blender -b --python tex_stats.py -- a.png b.png ..."""
 import sys, bpy
 import numpy as np
 

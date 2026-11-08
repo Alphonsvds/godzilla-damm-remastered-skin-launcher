@@ -3,15 +3,12 @@
 NS = "{http://www.collada.org/2005/11/COLLADASchema}"
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
 
-
-
 def walk(node, depth, out):
     if node.get("type") == "JOINT":
         out.append("  " * depth + (node.get("sid") or node.get("name") or node.get("id")))
         depth += 1
     for c in node.findall(NS + "node"):
         walk(c, depth, out)
-
 
 for path in args:
     print("=" * 70)

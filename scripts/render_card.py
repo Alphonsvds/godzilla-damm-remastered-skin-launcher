@@ -1,7 +1,3 @@
-"""Portrait card render of a model as it stands (no animation), with the same lighting as render_hero.py.
-  blender -b model.blend --python render_card.py -- <out.png>                (uses the blend's meshes)
-  blender -b --factory-startup --python render_card.py -- <out.png> <model.glb>  (game glb; raw verts are /100)
-"""
 import sys, math
 import bpy
 from mathutils import Matrix, Vector
@@ -39,7 +35,6 @@ for ob in meshes:
 lo = Vector([min(p[i] for p in pts) for i in range(3)])
 hi = Vector([max(p[i] for p in pts) for i in range(3)])
 ctr, height = (lo + hi) / 2, hi.z - lo.z
-# front is the side away from the long tail: the end of Y where fewer vertices are
 ys = sorted(p.y for p in pts)
 front = Vector((0, -1 if abs(ys[len(ys) // 2] - lo.y) > abs(hi.y - ys[len(ys) // 2]) else 1, 0))
 front = Vector((0, 1 if (ys[len(ys) // 2] - ctr.y) < 0 else -1, 0)) * -1
@@ -60,7 +55,6 @@ gm.use_nodes = True
 gm.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.006, 0.006, 0.007, 1)
 bpy.context.active_object.data.materials.append(gm)
 
-
 def light(name, loc, energy, color, size):
     ld = bpy.data.lights.new(name, "AREA")
     ld.energy, ld.color, ld.size = energy, color, size
@@ -69,8 +63,7 @@ def light(name, loc, energy, color, size):
     ob.location = loc
     ob.rotation_euler = (ctr - Vector(loc)).to_track_quat("-Z", "Y").to_euler()
 
-
-k = height / 113  # lights were tuned on a 113-unit Gigan
+k = height / 113
 light("Key", ctr + (front * 260 + side * 180 + Vector((0, 0, 160))) * k, 2.2e6 * k * k, (1.0, 0.86, 0.72), 120 * k)
 light("Rim", ctr + (-front * 220 - side * 120 + Vector((0, 0, 220))) * k, 3.0e6 * k * k, (1.0, 0.18, 0.12), 60 * k)
 light("Fill", ctr + (front * 200 - side * 220 + Vector((0, 0, 40))) * k, 4.0e5 * k * k, (0.45, 0.6, 1.0), 160 * k)
