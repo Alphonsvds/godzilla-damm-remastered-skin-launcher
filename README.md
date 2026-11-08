@@ -58,8 +58,6 @@ The 2004 Final Wars Godzilla, as a skin for both Godzilla and Godzilla 2000. He 
 
 ## Install
 
-<img alt="Godzilla DAMMR Skin Launcher" src="docs/screenshots/launcher.png" width="520">
-
 1. Download **Godzilla_DAMMR_Skin_Launcher_v0.4.zip** from the [latest release](../../releases/latest).
 2. Extract it anywhere, for example your Desktop. Keep everything in the folder together.
 3. Close the game.
