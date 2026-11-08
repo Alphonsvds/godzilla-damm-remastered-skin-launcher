@@ -13,7 +13,7 @@ Comes with a one-click skin switcher.
 | --- | --- |
 | ![Visor beam over the river](docs/screenshots/beam-river.webp) | ![Final Wars Gigan in the rain](docs/screenshots/city-rain.webp) |
 | ![Chainsaw Gigan against Rodan](docs/screenshots/chainsaw-harbor.webp) | ![Downtown fight with Rodan](docs/screenshots/city-rodan.webp) |
-| ![Beam across the canyon](docs/screenshots/beam-canyon.webp) | ![Wide shot of the visor beam](docs/screenshots/beam-wide.webp) |
+| ![Beam across the canyon](docs/screenshots/beam-canyon.webp) | ![Gigan on the city skyline](docs/screenshots/city-skyline.webp) |
 
 ## Skins
 
