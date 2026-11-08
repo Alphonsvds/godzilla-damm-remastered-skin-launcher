@@ -43,6 +43,31 @@ switch (args[0])
             Console.WriteLine(f);
         break;
     }
+    case "regrefs":
+    {
+        // Who references packages whose name contains args[1], according to the cooked AssetRegistry.bin.
+        if (!provider.TrySaveAsset("GZPro/AssetRegistry.bin", out var bytes)) throw new Exception("no AssetRegistry.bin");
+        var reg = new CUE4Parse.UE4.AssetRegistry.FAssetRegistryState(new CUE4Parse.UE4.Readers.FByteArchive("AssetRegistry.bin", bytes, provider.Versions));
+        string Id(CUE4Parse.UE4.AssetRegistry.Objects.FAssetIdentifier? i) => i is null ? "?" :
+            !i.PrimaryAssetType.IsNone ? $"[{i.PrimaryAssetType.Text}:{i.ObjectName.Text}]" : i.PackageName.Text + (i.ObjectName.IsNone ? "" : "." + i.ObjectName.Text);
+        var nodes = reg.PreallocatedDependsNodeDataBuffers;
+        foreach (var n in nodes.Where(n => n.Identifier is not null && Id(n.Identifier).Contains(args[1], StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine($"{Id(n.Identifier)}");
+            foreach (var r in n.Referencers ?? []) Console.WriteLine($"    <- {Id(nodes[r].Identifier)}");
+        }
+        foreach (var a in reg.PreallocatedAssetDataBuffers.Where(a => a.AssetClass.Text.Contains("CharacterSkin")))
+            Console.WriteLine($"skin asset: {a.ObjectPath}");
+        break;
+    }
+    case "raw":
+    {
+        // Save a non-package file (ini, json, AssetRegistry.bin...) from the archives.
+        if (!provider.TrySaveAsset(args[1], out var bytes)) throw new Exception($"not found: {args[1]}");
+        File.WriteAllBytes(args[2], bytes);
+        Console.WriteLine($"wrote {args[2]} ({bytes.Length} bytes)");
+        break;
+    }
     case "json":
     {
         var exports = provider.LoadPackage(args[1]).GetExports();

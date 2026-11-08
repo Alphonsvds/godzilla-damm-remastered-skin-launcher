@@ -14,9 +14,14 @@ TORSO = (args[2].split(",") if len(args) > 2 else
          ["Bip01", "Bip01_Pelvis", "Bip01_Spine", "Bip01_Spine1", "Bip01_Neck", "Bip01_Neck1"])
 
 body = bpy.data.objects["SK_GZPro_Gigan_FW"]
+# "no-new-tail": don't let the transfer put tail weights where the model had none (e.g. the back of a thigh that
+# sits near the game mesh's tail root), so those spots don't get dragged along by tail swings
+NO_NEW_TAIL = len(args) > 3 and args[3] == "no-new-tail"
+had_tail = {v.index for v in body.data.vertices
+            if any(body.vertex_groups[g.group].name.startswith("Bip01_Tail") and g.weight > 0 for g in v.groups)}
 before = set(bpy.data.objects)
 bpy.ops.import_scene.gltf(filepath=glb)
-src = next(o for o in bpy.data.objects if o not in before and o.type == "MESH" and o.name.startswith("SK_GZPro_Gigan"))
+src = next(o for o in bpy.data.objects if o not in before and o.type == "MESH" and o.name.startswith("SK_GZPro"))
 mw = src.matrix_world.copy()
 src.parent = None
 for m in list(src.modifiers):
@@ -59,6 +64,12 @@ while body.modifiers[0].name != "TorsoWeights":
 with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
     bpy.ops.object.modifier_apply(modifier="TorsoWeights")
     body.vertex_groups.remove(body.vertex_groups["TorsoMask"])
+    if NO_NEW_TAIL:
+        tails = [g for g in body.vertex_groups if g.name.startswith("Bip01_Tail")]
+        drop = [v.index for v in body.data.vertices if v.index not in had_tail]
+        for g in tails:
+            g.remove(drop)
+        print(f"[xfer] kept tail weights only on the {len(had_tail)} vertices that had them")
     bpy.ops.object.vertex_group_limit_total(group_select_mode="ALL", limit=4)
     bpy.ops.object.vertex_group_normalize_all(group_select_mode="ALL", lock_active=False)
     bpy.ops.object.vertex_group_clean(group_select_mode="ALL", limit=0.001)

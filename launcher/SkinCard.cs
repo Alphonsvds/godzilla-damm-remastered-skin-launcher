@@ -29,7 +29,8 @@ public sealed class SkinCard : Control
     public Skin Skin { get; }
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool InGame { get; set; }
+    /// <summary>Small label under the name (e.g. IN GAME NOW, COMING SOON); null for none.</summary>
+    public string? Badge { get; set; }
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Selected
@@ -127,15 +128,15 @@ public sealed class SkinCard : Control
         // name + in-game tag
         const int pad = 22;
         using var nameFont = new Font("Segoe UI Black", Math.Max(16f, r.Width / 12.5f), FontStyle.Regular, GraphicsUnit.Pixel);
-        var nameRect = new RectangleF(pad, 0, r.Width - pad * 2, r.Height - pad - (InGame ? 30 : 0));
+        var nameRect = new RectangleF(pad, 0, r.Width - pad * 2, r.Height - pad - (Badge is null ? 0 : 30));
         using var fmt = new StringFormat { LineAlignment = StringAlignment.Far, Alignment = StringAlignment.Near };
         using (var shadow = new SolidBrush(Color.FromArgb(160, 0, 0, 0)))
             g.DrawString(Skin.Name.ToUpperInvariant(), nameFont, shadow, new RectangleF(nameRect.X + 2, nameRect.Y + 2, nameRect.Width, nameRect.Height), fmt);
         g.DrawString(Skin.Name.ToUpperInvariant(), nameFont, Brushes.White, nameRect, fmt);
-        if (InGame)
+        if (Badge is not null)
         {
             using var tagFont = new Font("Segoe UI Semibold", 11f, GraphicsUnit.Pixel);
-            const string tag = "IN GAME NOW";
+            var tag = Badge;
             var size = g.MeasureString(tag, tagFont);
             var tagRect = new RectangleF(pad, r.Height - pad - 20, size.Width + 14, 20);
             using var path = Rounded(tagRect, 10);

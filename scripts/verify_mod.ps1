@@ -1,10 +1,25 @@
-param([string]$ModDir, [string]$ModName = "zGiganFW_P")
-# Reads the packaged mod back with gzexport and compares it with the game's own SK_GZPro_Gigan.
+param([string]$ModDir, [ValidateSet("gigan", "godzilla2k", "heisei")] [string]$Target = "gigan", [string]$ModName = "")
+# Reads the packaged mod back with gzexport and compares it with the game's own mesh (bones, slots, size).
 $ErrorActionPreference = "Continue"  # gzexport logs to stderr; don't treat that as failure
 $P = "C:\Users\halst\OneDrive\Desktop\Projects\gigan-fw-mod"
 $X = "C:\Users\halst\GiganModTools\gzexport\gzexport.exe"
 $Game = "C:\Program Files (x86)\Steam\steamapps\common\Godzilla Destroy All Monsters Melee Remastered\GZPro\Content\Paks"
-$Mesh = "GZPro/Content/Characters/GZPro_Monsters/Gigan/SK_GZPro_Gigan.SK_GZPro_Gigan"
+if ($Target -eq "godzilla2k") {
+    if (-not $ModName) { $ModName = "zGodzilla2004_P" }
+    $Mesh = "GZPro/Content/Characters/GZPro_Monsters/Godzilla2K/SK_GZPro_Godzilla2k.SK_GZPro_Godzilla2k"
+    $GameBones = "$P\work\godzilla\game\bones_SK_GZPro_Godzilla2k.json"
+    $Filter, $RootName = "SK_GZPro_Godzilla2k|Godzilla2k_LP|SKEL_GZ1|PHYS_GZ1|MI_GZPro", "Godzilla2KRoot"
+} elseif ($Target -eq "heisei") {
+    if (-not $ModName) { $ModName = "zHeisei2004_P" }
+    $Mesh = "GZPro/Content/Characters/GZPro_Monsters/HeiseiGodzilla/SK_GZPro_HeiseiGodzilla.SK_GZPro_HeiseiGodzilla"
+    $GameBones = "$P\work\godzilla\game\bones_SK_GZPro_HeiseiGodzilla.json"
+    $Filter, $RootName = "SK_GZPro_HeiseiGodzilla|HeiseiGodzilla_.*_LP|SKEL_GZ1|PHYS_GZ1|MI_HeiseiGodzilla", "Godzilla90Root"
+} else {
+    if (-not $ModName) { $ModName = "zGiganFW_P" }
+    $Mesh = "GZPro/Content/Characters/GZPro_Monsters/Gigan/SK_GZPro_Gigan.SK_GZPro_Gigan"
+    $GameBones = "$P\work\game\bones_SK_GZPro.json"
+    $Filter, $RootName = "SK_GZPro_Gigan|Gigan_LP_base|SKEL_GZ1|PHYS_GZ1|MI_GZPro", "GiganRoot"
+}
 $work = Join-Path $P "work\verify"
 New-Item -ItemType Directory -Force $work | Out-Null
 
@@ -16,13 +31,13 @@ Copy-Item "$ModDir\$ModName.*" $solo
 Copy-Item "$Game\global.utoc", "$Game\global.ucas" $solo
 
 $env:GZ_PAKS = $solo
-& $X list "SK_GZPro_Gigan|Gigan_LP_base|SKEL_GZ1|PHYS_GZ1|MI_GZPro" 2>$null | ForEach-Object { "  in mod: $_" }
+& $X list $Filter 2>$null | ForEach-Object { "  in mod: $_" }
 & $X meshinfo $Mesh 2>&1 | Where-Object { $_ -notmatch "mounted" } | ForEach-Object { "  mod  $_" }
 & $X bones $Mesh "$work\bones_mod.json" 2>&1 | Where-Object { $_ -notmatch "mounted" }
 Remove-Item Env:GZ_PAKS
-& $X meshinfo $Mesh 2>&1 | Where-Object { $_ -match "LOD0|slot|GiganRoot|Bip01 " } | ForEach-Object { "  game $_" }
+& $X meshinfo $Mesh 2>&1 | Where-Object { $_ -match "LOD0|slot|$RootName|Bip01 " } | ForEach-Object { "  game $_" }
 
-$a = (Get-Content "$P\work\game\bones_SK_GZPro.json" -Raw | ConvertFrom-Json).bones
+$a = (Get-Content $GameBones -Raw | ConvertFrom-Json).bones
 $b = (Get-Content "$work\bones_mod.json" -Raw | ConvertFrom-Json).bones
 if ($a.Count -ne $b.Count) { "BONE COUNT DIFFERS: game $($a.Count) vs mod $($b.Count)" }
 $bad = 0

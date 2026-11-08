@@ -4,21 +4,52 @@ using System.Text.RegularExpressions;
 
 namespace GiganSkinLauncher;
 
-/// <summary>A selectable skin: a folder under skins\ holding skin.json, preview.png and the mod's pak/utoc/ucas files.
-/// The built-in "Showa" skin is the game's own Gigan: no folder, installs nothing; its card art is skins\original.png.</summary>
+/// <summary>A monster with its own skins: a folder under skins\ holding monster.json, card.png, original.png (the
+/// game's own look) and one sub-folder per skin. Each monster keeps its own install record in ~mods, so skins for
+/// different monsters can be active at the same time.</summary>
+public sealed record Monster(string Id, string Name, string OriginalName, string Manifest, string? Card, List<Skin> Skins)
+{
+    public static List<Monster> Load(string skinsDir)
+    {
+        var list = new List<Monster>();
+        if (!Directory.Exists(skinsDir)) return list;
+        foreach (var dir in Directory.EnumerateDirectories(skinsDir))
+        {
+            var json = Path.Combine(dir, "monster.json");
+            if (!File.Exists(json)) continue;
+            var doc = JsonDocument.Parse(File.ReadAllText(json)).RootElement;
+            string Get(string key, string fallback) => doc.TryGetProperty(key, out var v) ? v.GetString() ?? fallback : fallback;
+            var original = Get("original", "Original");
+            var card = Path.Combine(dir, "card.png");
+            list.Add(new Monster(Path.GetFileName(dir), Get("name", Path.GetFileName(dir)), original,
+                Get("manifest", $".{Path.GetFileName(dir)}-skin-launcher.json"), File.Exists(card) ? card : null,
+                Skin.Load(dir, original)));
+        }
+        return list.OrderBy(m => m.Name).ToList();
+    }
+
+    /// <summary>The monster as a card on the home screen.</summary>
+    public Skin AsCard => new(Id, Name, "", null, Card);
+}
+
+/// <summary>A selectable skin: a folder holding skin.json, preview.png and the mod's pak/utoc/ucas files.
+/// The built-in "original" skin is the game's own look: no folder, installs nothing; its card art is original.png.
+/// A skin folder with no mod files yet shows as "coming soon".</summary>
 public sealed record Skin(string Id, string Name, string Description, string? Folder, string? Preview)
 {
-    public static readonly Skin Original = new("original", "Showa", "The game's own Gigan, untouched.", null, null);
+    public const string OriginalId = "original";
 
     public IEnumerable<string> ModFiles => Folder is null
         ? []
         : Directory.EnumerateFiles(Folder).Where(f => Path.GetExtension(f).ToLowerInvariant() is ".pak" or ".utoc" or ".ucas");
 
-    public static List<Skin> Load(string skinsDir)
+    public bool Ready => Folder is null || ModFiles.Any();
+
+    public static List<Skin> Load(string monsterDir, string originalName)
     {
-        var originalArt = Path.Combine(skinsDir, "original.png");
-        var skins = new List<Skin> { Original with { Preview = File.Exists(originalArt) ? originalArt : null } };
-        if (!Directory.Exists(skinsDir)) return skins;
+        var originalArt = Path.Combine(monsterDir, "original.png");
+        var skins = new List<Skin> { new(OriginalId, originalName, "", null, File.Exists(originalArt) ? originalArt : null) };
+        var skinsDir = monsterDir;
         foreach (var dir in Directory.EnumerateDirectories(skinsDir).Order())
         {
             var json = Path.Combine(dir, "skin.json");
@@ -39,13 +70,11 @@ public sealed class GameInstall
 {
     public const string SteamAppId = "4251460";
     const string GameFolder = "Godzilla Destroy All Monsters Melee Remastered";
-    const string ManifestName = ".gigan-skin-launcher.json";
 
     public string Root { get; }
     /// <summary>True when found through Steam (launch via Steam); false when the user picked the folder.</summary>
     public bool ViaSteam { get; }
     public string ModsDir => Path.Combine(Root, "GZPro", "Content", "Paks", "~mods");
-    string ManifestPath => Path.Combine(ModsDir, ManifestName);
 
     // a folder the user picked is remembered here so they only browse once
     static readonly string SettingsPath = Path.Combine(
@@ -105,27 +134,30 @@ public sealed class GameInstall
         Process.GetProcesses().Any(p => p.ProcessName.StartsWith("GZPro", StringComparison.OrdinalIgnoreCase) &&
                                         p.ProcessName.Contains("Shipping", StringComparison.OrdinalIgnoreCase));
 
-    public string ActiveSkinId()
+    /// <summary>The skin installed for a monster, from that monster's install record (<paramref name="manifest"/>).</summary>
+    public string ActiveSkinId(string manifest)
     {
-        if (!File.Exists(ManifestPath)) return Skin.Original.Id;
-        var doc = JsonDocument.Parse(File.ReadAllText(ManifestPath)).RootElement;
+        var manifestPath = Path.Combine(ModsDir, manifest);
+        if (!File.Exists(manifestPath)) return Skin.OriginalId;
+        var doc = JsonDocument.Parse(File.ReadAllText(manifestPath)).RootElement;
         var files = doc.GetProperty("files").EnumerateArray().Select(f => f.GetString()!);
-        return files.All(f => File.Exists(Path.Combine(ModsDir, f))) ? doc.GetProperty("skin").GetString()! : Skin.Original.Id;
+        return files.All(f => File.Exists(Path.Combine(ModsDir, f))) ? doc.GetProperty("skin").GetString()! : Skin.OriginalId;
     }
 
-    public void Apply(Skin skin)
+    public void Apply(Skin skin, string manifest)
     {
         if (IsGameRunning()) throw new InvalidOperationException("Close the game before switching skins.");
+        var manifestPath = Path.Combine(ModsDir, manifest);
         Directory.CreateDirectory(ModsDir);
-        if (File.Exists(ManifestPath))
+        if (File.Exists(manifestPath))
         {
-            var doc = JsonDocument.Parse(File.ReadAllText(ManifestPath)).RootElement;
+            var doc = JsonDocument.Parse(File.ReadAllText(manifestPath)).RootElement;
             foreach (var f in doc.GetProperty("files").EnumerateArray())
             {
                 var path = Path.Combine(ModsDir, f.GetString()!);
                 if (File.Exists(path)) File.Delete(path);
             }
-            File.Delete(ManifestPath);
+            File.Delete(manifestPath);
         }
         var installed = new List<string>();
         foreach (var src in skin.ModFiles)
@@ -135,7 +167,7 @@ public sealed class GameInstall
             installed.Add(name);
         }
         if (installed.Count > 0)
-            File.WriteAllText(ManifestPath, JsonSerializer.Serialize(new { skin = skin.Id, files = installed }));
+            File.WriteAllText(manifestPath, JsonSerializer.Serialize(new { skin = skin.Id, files = installed }));
     }
 
     /// <summary>Starts the game: through Steam when found there, otherwise the game's own executable.
