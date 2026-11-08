@@ -212,6 +212,12 @@ PLATES = {"spines", "spines2"}
 bm = bmesh.new()
 bm.from_mesh(me)
 bmesh.ops.delete(bm, geom=[f for f in bm.faces if mat_names[f.material_index] in DROP], context="FACES")
+# the MMD plates are split into pieces along seams (duplicate vertices at the same spot); welded, they can't be
+# pulled apart by slightly different skin weights, which opened see-through slits in game
+plate_v = list({v for f in bm.faces if mat_names[f.material_index] in {"spines", "spines2"} for v in f.verts})
+n0 = len(bm.verts)
+bmesh.ops.remove_doubles(bm, verts=plate_v, dist=0.001)
+print(f"[g04] welded {n0 - len(bm.verts)} duplicate plate vertices")
 bm.to_mesh(me)
 bm.free()
 uv = me.uv_layers.active.data
@@ -335,7 +341,13 @@ for v in me.vertices:
                 acc[name] = acc.get(name, 0) + g.weight * f
             continue
         if gb == "Bip01_Spine1":  # upper chest: blend toward the game's Neck bone (where the arms hang) by height
-            t = max(0.0, min(1.0, (v.co.z - spine1_z) / (neck_z - spine1_z)))
+            if OWN_UPPER:
+                # like the game mesh: the upper back stays mostly on Spine1 up to the shoulders and only ~60% Neck
+                # at the base of the neck. Going fully to Neck at the Neck joint swung the whole upper back with
+                # every head/neck motion and raised a hunch behind the shoulders.
+                t = max(0.0, min(1.0, (v.co.z - spine1_z) / ((G["Bip01_Neck1"].z - spine1_z) * 1.6)))
+            else:
+                t = max(0.0, min(1.0, (v.co.z - spine1_z) / (neck_z - spine1_z)))
             acc["Bip01_Spine1"] = acc.get("Bip01_Spine1", 0) + g.weight * (1 - t)
             acc["Bip01_Neck"] = acc.get("Bip01_Neck", 0) + g.weight * t
             continue

@@ -37,6 +37,12 @@ if TARGET == "godzilla2k":
     TEXTURES = {f"Godzilla2k_LP_{p}_{k}": kind for p in ("body", "spines")
                 for k, kind in (("C", COLOR), ("N", NORMAL), ("AOR", LINEAR), ("MSK", GRAY), ("ATK_MSK", GRAY))}
     TEXTURES.update({"Godzilla2k_LP_body_H": GRAY, "Godzilla2k_LP_spines_E": COLOR})
+    # the Burning Millennium skin's textures (bake_burning.py), at that skin's own texture folder
+    BURN_DIR = f"{HOME}/Skins/2kBurningGodzilla/Textures"
+    EXTRA_TEXTURES = {f"2kBurningGodzilla_LP_{k}": (BURN_DIR, kind) for k, kind in (
+        ("Body_C", COLOR), ("Body_N", NORMAL), ("Body_AORM", LINEAR), ("Body_E", COLOR), ("Body_H", GRAY),
+        ("Body_MSK", GRAY), ("spines_C", COLOR), ("spines_N", NORMAL), ("spines_AORM", LINEAR), ("spines_E", COLOR),
+        ("spines_MSK", GRAY))}
 elif TARGET == "heisei":  # the regular Godzilla
     HOME = "/Game/Characters/GZPro_Monsters/HeiseiGodzilla"
     GZ1 = "/Game/Characters/GZ1_Monsters/HeiseiGodzilla"
@@ -48,9 +54,6 @@ elif TARGET == "heisei":  # the regular Godzilla
     SLOT_MI = {"body_mat": "MI_HeiseiGodzilla_Body", "spines_mat": "MI_HeiseiGodzilla_Spines"}
     TEXTURES = {f"HeiseiGodzilla_{p}_LP_{k}": kind for p in ("Body", "Spines")
                 for k, kind in (("C", COLOR), ("N", NORMAL), ("AORM", LINEAR), ("H", GRAY), ("MSK", GRAY), ("ATK_MSK", GRAY))}
-    # GZ_SKEL_JSON (the game skeleton's CUE4Parse json dump): when set, the skeleton is shipped too, as a copy of the
-    # game's (same bones, sockets, virtual-bone guid) whose upper-body bones take their positions from the mesh
-    SHIP_SKEL_JSON = os.environ.get("GZ_SKEL_JSON")
 else:
     HOME = "/Game/Characters/GZPro_Monsters/Gigan"
     GZ1 = "/Game/Characters/GZ1_Monsters/Gigan"
@@ -128,8 +131,10 @@ for src, dst in ((f"{MESH}_Skeleton", SKEL), (f"{MESH}_PhysicsAsset", PHYS)):
     if not ok:
         raise RuntimeError("rename failed")
 
-# --- shipped skeleton (heisei with GZ_SKEL_JSON): a copy of the game's that takes upper-body bone positions from the mesh
-SHIP_SKEL = TARGET == "heisei" and bool(globals().get("SHIP_SKEL_JSON"))
+# --- shipped skeleton (Godzillas, when GZ_SKEL_JSON names the game skeleton's CUE4Parse dump): a copy of the game's
+# (same bones, sockets, virtual-bone guid) whose upper-body and thigh bones take their positions from the mesh
+SHIP_SKEL_JSON = os.environ.get("GZ_SKEL_JSON") if TARGET in ("heisei", "godzilla2k") else None
+SHIP_SKEL = bool(SHIP_SKEL_JSON)
 OWN_BONES = {"Bip01_Spine", "Bip01_Spine1", "Bip01_Neck", "Bip01_Neck1", "Bip01_Head", "Bip01_Jaw"} | {
     f"Bip01_{s}_{b}" for s in "LR" for b in ("Clavicle", "UpperArm", "Forearm", "Hand", "Finger0", "Finger01", "Finger1", "Finger11",
                                             "Thigh", "Calf")}  # thighs at the model's hips, knees on the game's
@@ -145,7 +150,8 @@ if SHIP_SKEL:
     modes = ",".join(f"(TranslationRetargetingMode={'Skeleton' if n in OWN_BONES else 'Animation'})" for n in bone_names)
     run(f"setnopec {skel.get_path_name()} BoneTree ({modes})")
     # animations are cooked against the game skeleton's virtual-bone guid; a different one makes them unplayable
-    vguid = gskel["Properties"]["VirtualBoneGuid"].replace("-", "")
+    # (a zero guid isn't written to the dump at all; Godzilla 2000's skeleton has one)
+    vguid = gskel["Properties"].get("VirtualBoneGuid", "0" * 32).replace("-", "")
     run(f"setnopec {skel.get_path_name()} VirtualBoneGuid {vguid}")
     log(f"skeleton: {len(OWN_BONES)} of {len(bone_names)} bones take their position from the mesh; virtual bone guid {vguid}")
     # the game skeleton's sockets (hit spheres, beam origin, footsteps, eye tracking...), on the same bones
@@ -200,9 +206,13 @@ eal.save_loaded_asset(mesh)
 
 # --- textures --------------------------------------------------------------------------------
 tex_assets = []
-for name, (comp, srgb, group) in TEXTURES.items():
-    run_import(os.path.join(EXPORT, "textures", name + ".png"), f"{HOME}/Textures", name)
-    t = unreal.load_asset(f"{HOME}/Textures/{name}")
+all_textures = {name: (f"{HOME}/Textures", kind) for name, kind in TEXTURES.items()}
+all_textures.update(globals().get("EXTRA_TEXTURES", {}))
+for name, (folder, (comp, srgb, group)) in all_textures.items():
+    if not os.path.exists(os.path.join(EXPORT, "textures", name + ".png")):
+        raise RuntimeError(f"missing texture {name}.png")
+    run_import(os.path.join(EXPORT, "textures", name + ".png"), folder, name)
+    t = unreal.load_asset(f"{folder}/{name}")
     t.set_editor_property("compression_settings", comp)
     t.set_editor_property("srgb", srgb)
     t.set_editor_property("lod_group", group)

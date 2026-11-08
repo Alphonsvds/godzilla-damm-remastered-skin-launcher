@@ -1,4 +1,4 @@
-# Rebuilds a skin mod end to end and drops it into its launcher slot.
+﻿# Rebuilds a skin mod end to end and drops it into its launcher slot.
 #   .\build_all.ps1            Wii Final Wars  -> skins\gigan\finalwars_wii_dev  (test slot; finalwars_wii is the kept one)
 #   .\build_all.ps1 -Skin ps3  PS3 Final Wars  -> archive\skins\finalwars_ps3 (not in the launcher)
 #   .\build_all.ps1 -Skin wiisaw  Wii Final Wars with the PS3 chainsaw hands -> skins\gigan\finalwars_wii_saw_dev
@@ -48,9 +48,11 @@ if ($Skin -like "g2004*") {
     } else {
         $GB = "$W\game\bones_SKEL_GZ1_Godzilla2k.json"
         $GGlb = "$W\game\export\GZPro\Content\Characters\GZPro_Monsters\Godzilla2k\SK_GZPro_Godzilla2k.glb"
-        $T, $MeshName, $Slots, $TexTarget, $Who = "g2004", "SK_GZPro_Godzilla2k", @(), "g2k", "Godzilla 2000"
-        $TorsoXfer = "Bip01,Bip01_Pelvis,Bip01_Spine,Bip01_Spine1,Bip01_Neck,Bip01_L_Thigh,Bip01_R_Thigh"
-        Remove-Item Env:GZ_SKEL_JSON -ErrorAction SilentlyContinue
+        # same as the regular Godzilla: own upper-body/thigh joints, the model's own weights, shipped skeleton
+        $T, $MeshName, $TexTarget, $Who = "g2004", "SK_GZPro_Godzilla2k", "g2k", "Godzilla 2000"
+        $Slots = @("Godzilla2k_Mesh_body_mtl", "Godzilla2k_Mesh_spines_mtl", "own-upper")
+        $TorsoXfer = ""
+        $env:GZ_SKEL_JSON = "$W\game\SKEL_GZ1_Godzilla2k.json"
     }
     $Src = "$P\source\godzilla_2004\Godzilla 2004 (JJJ and MMDCharizard)"
     $Hips = "Bip01_Pelvis,Bip01_L_Thigh,Bip01_R_Thigh,Bip01_L_Calf,Bip01_R_Calf,Bip01_Tail,Bip01_Tail1"
@@ -66,12 +68,18 @@ if ($Skin -like "g2004*") {
         Copy-Item "$W\$($T)_fitted.blend" "$W\$($T)_v3.blend" -Force
     }
     Step "smooth overlapping shells"      { Blend "$W\$($T)_v3.blend" "smooth_shells.py" @("$W\$($T)_final.blend", "2.5", "3", "Bip01_Pelvis,Bip01_L_Thigh,Bip01_R_Thigh,Bip01_Tail") }
-    Step "pin dorsal plates to the skin"  { Blend "$W\$($T)_final.blend" "rigid_plates.py" @("$W\$($T)_final.blend") }
+    Step "slim the thighs"                { Blend "$W\$($T)_final.blend" "slim_thighs.py" @("$W\$($T)_final.blend", "0.88") }
+    Step "pin dorsal plates to the skin"  { Blend "$W\$($T)_final.blend" "rigid_plates.py" @("$W\$($T)_final.blend", "1.2") }
     Step "soles onto the ground"          { Blend "$W\$($T)_final.blend" "lift_soles.py" @("$W\$($T)_final.blend") }
     Step "export FBX"                     { Blend "$W\$($T)_final.blend" "export_fbx.py" @("$Export\$MeshName.fbx", "X", "-Y", $MeshName) }
     Step "textures" {
         & $Blender -b --factory-startup --python-exit-code 1 --python "$P\scripts\make_textures_g2004.py" -- $Src "$Export\plates_mask.png" "$Export\textures" $TexTarget 2>&1 |
             Where-Object { $_ -match '^\[|Error' } | ForEach-Object { "   $_" }
+    }
+    if ($Skin -eq "g2004") {
+        # the game's Burning Millennium skin puts its own textures on this mesh: bake them onto the 2004 model
+        $BT = "$W\game\burning\GZPro\Content\Characters\GZPro_Monsters\Godzilla2k\Skins\2kBurningGodzilla\Textures"
+        Step "Burning skin textures" { Blend "$W\$($T)_final.blend" "bake_burning.py" @($GGlb, $BT, "$Export\textures", "$Export\plates_mask.png", "$Export\textures") }
     }
 } elseif ($Skin -ne "ps3") {
     Step "fit Wii model to game skeleton" { Blend "$P\work\gigan_fw_wii.blend" "fit_wii.py" @($Bones, "$P\work\gigan_fw_fitted.blend") }
@@ -114,12 +122,12 @@ Step "cook" {
 Step "pack mod container" { & "$P\scripts\build_mod_container.ps1" -Target $Target | Where-Object { $_ -match "bytes|files packed|Error" } }
 Step "verify against game" { & "$P\scripts\verify_mod.ps1" -ModDir "C:\Users\halst\GiganModUE\GZPro\Saved\Mod" -Target $Target 2>$null | Where-Object { $_ -match "LOD0|mismatches|<--|BONE COUNT" } }
 Step "launcher slot" {
-    $dir = "$P\Gigan Skin Launcher\skins\$Slot"
+    $dir = "$P\Godzilla DAMMR Skin Launcher\skins\$Slot"
     New-Item -ItemType Directory -Force $dir | Out-Null
     if (-not (Test-Path "$dir\skin.json")) {
-        $name = @{ wii = "Final Wars (test)"; ps3 = "Final Wars (PS3) - chainsaws"; wiisaw = "Chainsaw (test)"; g2004h = "2004" }[$Skin]
+        $name = @{ wii = "Final Wars (test)"; ps3 = "Final Wars (PS3) - chainsaws"; wiisaw = "Chainsaw (test)"; g2004h = "2004"; g2004 = "2004" }[$Skin]
         "{ `"name`": `"$name`", `"description`": `"`" }" | Set-Content -Encoding utf8 "$dir\skin.json"
-        $prev = @{ wii = "$P\source\card_art\finalwars.png"; ps3 = "$P\work\ps3_preview_threequarter.png"; wiisaw = "$P\source\card_art\finalwars_chainsaw.png" }[$Skin]
+        $prev = @{ wii = "$P\source\card_art\finalwars.png"; ps3 = "$P\work\ps3_preview_threequarter.png"; wiisaw = "$P\source\card_art\finalwars_chainsaw.png"; g2004h = "$P\source\card_art\godzilla_2004.png"; g2004 = "$P\source\card_art\godzilla_2004.png" }[$Skin]
         if (Test-Path $prev) { Copy-Item $prev "$dir\preview.png" }
     }
     Copy-Item "C:\Users\halst\GiganModUE\GZPro\Saved\Mod\$ModName.*" $dir -Force

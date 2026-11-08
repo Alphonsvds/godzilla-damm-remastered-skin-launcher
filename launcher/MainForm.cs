@@ -24,7 +24,7 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Gigan Skin Launcher";
+        Text = "Godzilla DAMMR Skin Launcher";
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         ClientSize = new Size(860, 560);
         MinimumSize = new Size(640, 440);
@@ -35,7 +35,7 @@ public sealed class MainForm : Form
 
         // top bar: MONSTERS / <monster>, tagline on the right
         var header = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Bg };
-        var sub = new Label { Text = "Gigan is daddy", AutoSize = true, ForeColor = Color.Silver, Font = new Font("Segoe UI", 11f) };
+        var sub = new Label { Text = "P.S. Gigan is daddy", AutoSize = true, ForeColor = Color.Silver, Font = new Font("Segoe UI", 11f) };
         _home.Location = new Point(22, 16);
         header.Controls.AddRange([_home, _crumb, sub]);
         header.Layout += (_, _) =>
@@ -199,7 +199,7 @@ public sealed class MainForm : Form
             {
                 if (!_game.Launch())
                 {
-                    MessageBox.Show(this, "Skin applied. Start the game the way you normally do.", "Gigan Skin Launcher",
+                    MessageBox.Show(this, "Skin applied. Start the game the way you normally do.", "Godzilla DAMMR Skin Launcher",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }

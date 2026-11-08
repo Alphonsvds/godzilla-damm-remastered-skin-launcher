@@ -78,6 +78,9 @@ public sealed class GameInstall
 
     // a folder the user picked is remembered here so they only browse once
     static readonly string SettingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Godzilla DAMMR Skin Launcher", "game-folder.txt");
+    // where versions up to v0.3 (named Gigan Skin Launcher) remembered it; still read so nobody has to browse again
+    static readonly string OldSettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Gigan Skin Launcher", "game-folder.txt");
 
     GameInstall(string root, bool viaSteam) { Root = root; ViaSteam = viaSteam; }
@@ -92,8 +95,9 @@ public sealed class GameInstall
         }
         try
         {
-            if (File.Exists(SettingsPath) && FromFolder(File.ReadAllText(SettingsPath).Trim()) is { } saved)
-                return saved;
+            foreach (var path in new[] { SettingsPath, OldSettingsPath })
+                if (File.Exists(path) && FromFolder(File.ReadAllText(path).Trim()) is { } saved)
+                    return saved;
         }
         catch (IOException) { }
         return null;

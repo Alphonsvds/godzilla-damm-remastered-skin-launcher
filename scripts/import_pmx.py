@@ -184,11 +184,13 @@ for mi, (mname, diffuse, tex, count, double) in enumerate(mats):
             mat.node_tree.links.new(node.outputs["Color"], bsdf.inputs["Base Color"])
             if node.image.depth == 32:
                 mat.node_tree.links.new(node.outputs["Alpha"], bsdf.inputs["Alpha"])
+    mat["mmd_double_sided"] = double  # MMD draws these without back-face culling; the game material culls
     me.materials.append(mat)
     for f in range(start // 3, (start + count) // 3):
         me.polygons[f].material_index = mi
     start += count
-    print(f"[pmx]   material {mi}: {mname!r} tris={count // 3} tex={textures[tex] if 0 <= tex < len(textures) else None}")
+    print(f"[pmx]   material {mi}: {mname!r} tris={count // 3} double-sided={double} "
+          f"tex={textures[tex] if 0 <= tex < len(textures) else None}")
 me.validate()
 ob = bpy.data.objects.new("PMX_Mesh", me)
 bpy.context.scene.collection.objects.link(ob)

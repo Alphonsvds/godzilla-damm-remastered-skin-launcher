@@ -3,7 +3,7 @@
 #   .\promote.ps1 wii        only Final Wars (test)
 #   .\promote.ps1 wiisaw     only Chainsaw (test)
 param([ValidateSet("all", "wii", "wiisaw")] [string]$Which = "all")
-$skins = "$PSScriptRoot\Gigan Skin Launcher\skins\gigan"
+$skins = "$PSScriptRoot\Godzilla DAMMR Skin Launcher\skins\gigan"
 $pairs = @{ wii = @("finalwars_wii_dev", "finalwars_wii"); wiisaw = @("finalwars_wii_saw_dev", "finalwars_wii_saw") }
 foreach ($k in $(if ($Which -eq "all") { "wii", "wiisaw" } else { $Which })) {
     $test, $kept = $pairs[$k]

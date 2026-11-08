@@ -5,7 +5,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Gigan Skin Launcher</AssemblyName>
+    <AssemblyName>Godzilla DAMMR Skin Launcher</AssemblyName>
     <RootNamespace>GiganSkinLauncher</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>gigan.ico</ApplicationIcon>

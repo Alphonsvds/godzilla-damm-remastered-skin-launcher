@@ -59,6 +59,11 @@ for spec in specs:
             c = sum(pts, Vector()) / len(pts)
             ext = max((p - c).length for p in pts)
             cam_data.ortho_scale = ext * 2.05
+            if os.environ.get("ANIM_FOCUS"):  # "zoom,height": close-up at a fraction of the model's height
+                zoom, fz = (float(x) for x in os.environ["ANIM_FOCUS"].split(","))
+                zs = [p.z for p in pts]
+                c = Vector((c.x, c.y, min(zs) + (max(zs) - min(zs)) * fz))
+                cam_data.ortho_scale = ext * 2.05 / zoom
             cam.location = (c.x + math.sin(a) * 600, c.y - math.cos(a) * 600, c.z)
         scn.render.filepath = f"{out_prefix}_{anim['name']}_{f:03d}.png"
         bpy.ops.render.render(write_still=True)

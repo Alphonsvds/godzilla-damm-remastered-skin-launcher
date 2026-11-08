@@ -15,10 +15,14 @@ Remove-Item "$Out\*" -Force -ErrorAction SilentlyContinue
 
 if ($Target -eq "godzilla2k") {
     $home_ = "Characters/GZPro_Monsters/Godzilla2K"
-    $ship = @("$home_/SK_GZPro_Godzilla2k") +
+    # the skeleton ships too: a copy of the game's whose upper-body and thigh bones take their positions from the mesh
+    $ship = @("$home_/SK_GZPro_Godzilla2k", "Characters/GZ1_Monsters/Godzilla2K/SKEL_GZ1_Godzilla2k_Skeleton") +
             @("body_C", "body_N", "body_AOR", "body_H", "body_MSK", "body_ATK_MSK",
               "spines_C", "spines_N", "spines_AOR", "spines_E", "spines_MSK", "spines_ATK_MSK" |
-              ForEach-Object { "$home_/Textures/Godzilla2k_LP_$_" })
+              ForEach-Object { "$home_/Textures/Godzilla2k_LP_$_" }) +
+            # the Burning Millennium skin's textures, redone for the 2004 model (bake_burning.py)
+            @("Body_C", "Body_N", "Body_AORM", "Body_E", "Body_H", "Body_MSK", "spines_C", "spines_N", "spines_AORM",
+              "spines_E", "spines_MSK" | ForEach-Object { "$home_/Skins/2kBurningGodzilla/Textures/2kBurningGodzilla_LP_$_" })
     $readmeName, $readmeText = "Godzilla2004.txt", "2004 (Final Wars) Godzilla skin for Godzilla DAMM Remastered. Model by JJJ and MMDCharizard."
 } elseif ($Target -eq "heisei") {
     $home_ = "Characters/GZPro_Monsters/HeiseiGodzilla"
