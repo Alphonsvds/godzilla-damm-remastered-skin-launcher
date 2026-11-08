@@ -3,7 +3,7 @@
 Play as Final Wars Gigan in **Godzilla: Destroy All Monsters Melee Remastered**, with or without chainsaw arms.
 Comes with a one-click skin switcher.
 
-![Final Wars Gigan firing his visor beam](docs/screenshots/beam-canyon.webp)
+![Final Wars Gigan firing his visor beam](docs/screenshots/beam-canyon-2.webp)
 
 <p align="center">
   <a href="../../releases/latest"><img alt="Download the latest release" src="https://img.shields.io/badge/DOWNLOAD-Latest%20release-e12626?style=for-the-badge&logo=github&logoColor=white" height="44"></a>
@@ -13,7 +13,7 @@ Comes with a one-click skin switcher.
 | --- | --- |
 | ![Visor beam over the river](docs/screenshots/beam-river.webp) | ![Final Wars Gigan in the rain](docs/screenshots/city-rain.webp) |
 | ![Chainsaw Gigan against Rodan](docs/screenshots/chainsaw-harbor.webp) | ![Downtown fight with Rodan](docs/screenshots/city-rodan.webp) |
-| ![Beam across the canyon](docs/screenshots/beam-canyon-2.webp) | ![Wide shot of the visor beam](docs/screenshots/beam-wide.webp) |
+| ![Beam across the canyon](docs/screenshots/beam-canyon.webp) | ![Wide shot of the visor beam](docs/screenshots/beam-wide.webp) |
 
 ## Skins
 
