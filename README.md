@@ -41,7 +41,7 @@ The 2004 Final Wars Godzilla, as a skin for both Godzilla and Godzilla 2000. He 
 | ![2004 Godzilla's beam by the river](docs/screenshots/godzilla2004-beam-river.webp) | ![Burning 2004 Godzilla's beam over the city](docs/screenshots/burning2004-beam-city.webp) |
 | ![Burning 2004 Godzilla firing at sunset](docs/screenshots/burning2004-beam-sunset.webp) | ![Burning 2004 Godzilla against King Ghidorah](docs/screenshots/burning2004-vs-ghidorah.webp) |
 | ![Burning 2004 Godzilla grappling King Ghidorah](docs/screenshots/burning2004-grapple-ghidorah.webp) | ![Burning 2004 Godzilla behind King Ghidorah](docs/screenshots/burning2004-vs-ghidorah-tail.webp) |
-| ![Burning 2004 Godzilla throwing a building](docs/screenshots/burning2004-building-throw.webp) | |
+| ![Burning 2004 Godzilla throwing a building](docs/screenshots/burning2004-building-throw.webp) | ![2004 Godzilla squaring off with King Ghidorah](docs/screenshots/godzilla2004-vs-ghidorah.webp) |
 
 ### Skins
 
